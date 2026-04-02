@@ -413,6 +413,18 @@ export type Database = {
         }
         Returns: Json
       }
+      create_povratnica: {
+        Args: {
+          p_date?: string
+          p_items?: Json
+          p_note?: string
+          p_project_id: string
+          p_received_by?: string
+          p_returned_by?: string
+          p_stock_location_id: string
+        }
+        Returns: Json
+      }
       create_primka: {
         Args: {
           p_date?: string
