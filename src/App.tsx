@@ -8,7 +8,7 @@ import Articles from "./pages/Articles";
 import Projects from "./pages/Projects";
 import NovaPrimka from "./pages/NovaPrimka";
 import NovaOtpremnica from "./pages/NovaOtpremnica";
-import DocumentForm from "./pages/DocumentForm";
+import PovratMaterijala from "./pages/PovratMaterijala";
 import Reports from "./pages/Reports";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
