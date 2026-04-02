@@ -25,13 +25,14 @@ export default function NovaOtpremnica() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
+  const { profile } = useAuth();
 
   const [form, setForm] = useState({
     stock_location_id: "",
     project_id: searchParams.get("project") || "",
     recipient_name: "",
     recipient_address: "",
-    issued_by: "",
+    issued_by: profile?.username || "",
     received_by: "",
     note: "",
     date: new Date().toISOString().slice(0, 10),

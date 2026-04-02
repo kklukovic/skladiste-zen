@@ -281,9 +281,11 @@ export default function Inventory() {
               {locations?.map(l => <SelectItem key={l.id} value={l.code}>{l.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={initOpeningBalance}>
-            <ClipboardList className="mr-2 h-4 w-4" />Postavi početno stanje
-          </Button>
+          {isAdmin && (
+            <Button variant="outline" onClick={initOpeningBalance}>
+              <ClipboardList className="mr-2 h-4 w-4" />Postavi početno stanje
+            </Button>
+          )}
         </div>
 
         {/* Main table */}
