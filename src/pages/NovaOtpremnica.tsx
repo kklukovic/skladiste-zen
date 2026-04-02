@@ -11,7 +11,7 @@ import { useState, useMemo } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { generateOtpremnicaPDF } from "@/lib/pdf-otpremnica";
+import { generateDocumentPDF } from "@/lib/pdf-generators";
 
 interface DocItem {
   article_id: string;

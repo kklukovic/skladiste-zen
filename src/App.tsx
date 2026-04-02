@@ -27,7 +27,7 @@ const App = () => (
           <Route path="/projekti" element={<Projects />} />
           <Route path="/primka" element={<NovaPrimka />} />
           <Route path="/otpremnica" element={<NovaOtpremnica />} />
-          <Route path="/povrat" element={<DocumentForm docType="return" />} />
+          <Route path="/povrat" element={<PovratMaterijala />} />
           <Route path="/izvjestaji" element={<Reports />} />
           <Route path="/postavke" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
