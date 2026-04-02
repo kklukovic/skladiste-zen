@@ -1,30 +1,36 @@
 import {
   Package, Boxes, FolderKanban, FileInput, FileMinus, RotateCcw,
-  BarChart3, Settings, Menu
+  BarChart3, Settings, LogOut
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import logo from "@/assets/logo-color.svg";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 
-const items = [
-  { title: "Pregled zalihe", url: "/", icon: Boxes },
-  { title: "Artikli", url: "/artikli", icon: Package },
-  { title: "Projekti", url: "/projekti", icon: FolderKanban },
-  { title: "Nova primka", url: "/primka", icon: FileInput },
-  { title: "Nova otpremnica", url: "/otpremnica", icon: FileMinus },
-  { title: "Povrat materijala", url: "/povrat", icon: RotateCcw },
-  { title: "Izvještaji", url: "/izvjestaji", icon: BarChart3 },
-  { title: "Postavke", url: "/postavke", icon: Settings },
+const allItems = [
+  { title: "Pregled zalihe", url: "/", icon: Boxes, roles: ["admin", "monter"] },
+  { title: "Artikli", url: "/artikli", icon: Package, roles: ["admin"] },
+  { title: "Projekti", url: "/projekti", icon: FolderKanban, roles: ["admin", "monter"] },
+  { title: "Nova primka", url: "/primka", icon: FileInput, roles: ["admin"] },
+  { title: "Nova otpremnica", url: "/otpremnica", icon: FileMinus, roles: ["admin", "monter"] },
+  { title: "Povrat materijala", url: "/povrat", icon: RotateCcw, roles: ["admin", "monter"] },
+  { title: "Izvještaji", url: "/izvjestaji", icon: BarChart3, roles: ["admin"] },
+  { title: "Postavke", url: "/postavke", icon: Settings, roles: ["admin"] },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { profile, signOut } = useAuth();
+
+  const role = profile?.role || "monter";
+  const items = allItems.filter(i => i.roles.includes(role));
 
   return (
     <Sidebar collapsible="icon">
@@ -63,6 +69,20 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        {!collapsed && profile && (
+          <div className="px-4 py-2 border-t">
+            <p className="text-sm font-medium text-sidebar-foreground">{profile.username}</p>
+            <p className="text-xs text-sidebar-foreground/60">{profile.role}</p>
+          </div>
+        )}
+        <div className={`px-2 pb-3 ${collapsed ? 'flex justify-center' : ''}`}>
+          <Button variant="ghost" size={collapsed ? "icon" : "sm"} onClick={signOut} className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground">
+            <LogOut className="h-4 w-4 mr-2" />
+            {!collapsed && "Odjava"}
+          </Button>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
