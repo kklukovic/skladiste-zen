@@ -33,6 +33,7 @@ function getStatus(qty: number, minQty: number) {
 }
 
 export default function Inventory() {
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
