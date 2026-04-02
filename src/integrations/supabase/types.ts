@@ -287,6 +287,30 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          role: string
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id: string
+          role?: string
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          role?: string
+          username?: string
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           created_at: string | null
@@ -435,6 +459,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_user_role: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
