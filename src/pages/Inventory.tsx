@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,6 +33,7 @@ function getStatus(qty: number, minQty: number) {
 }
 
 export default function Inventory() {
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -281,9 +283,11 @@ export default function Inventory() {
               {locations?.map(l => <SelectItem key={l.id} value={l.code}>{l.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={initOpeningBalance}>
-            <ClipboardList className="mr-2 h-4 w-4" />Postavi početno stanje
-          </Button>
+          {isAdmin && (
+            <Button variant="outline" onClick={initOpeningBalance}>
+              <ClipboardList className="mr-2 h-4 w-4" />Postavi početno stanje
+            </Button>
+          )}
         </div>
 
         {/* Main table */}
