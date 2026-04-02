@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Inventory from "./pages/Inventory";
 import Articles from "./pages/Articles";
 import Projects from "./pages/Projects";
+import NovaPrimka from "./pages/NovaPrimka";
 import DocumentForm from "./pages/DocumentForm";
 import Reports from "./pages/Reports";
 import SettingsPage from "./pages/SettingsPage";
@@ -23,7 +24,7 @@ const App = () => (
           <Route path="/" element={<Inventory />} />
           <Route path="/artikli" element={<Articles />} />
           <Route path="/projekti" element={<Projects />} />
-          <Route path="/primka" element={<DocumentForm docType="in" />} />
+          <Route path="/primka" element={<NovaPrimka />} />
           <Route path="/otpremnica" element={<DocumentForm docType="out" />} />
           <Route path="/povrat" element={<DocumentForm docType="return" />} />
           <Route path="/izvjestaji" element={<Reports />} />

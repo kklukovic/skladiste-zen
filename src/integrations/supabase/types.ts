@@ -399,7 +399,16 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      create_primka: {
+        Args: {
+          p_date?: string
+          p_items?: Json
+          p_note?: string
+          p_stock_location_id: string
+          p_supplier?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
