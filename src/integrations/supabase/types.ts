@@ -399,6 +399,20 @@ export type Database = {
       }
     }
     Functions: {
+      create_otpremnica: {
+        Args: {
+          p_date?: string
+          p_issued_by?: string
+          p_items?: Json
+          p_note?: string
+          p_project_id?: string
+          p_received_by?: string
+          p_recipient_address?: string
+          p_recipient_name?: string
+          p_stock_location_id: string
+        }
+        Returns: Json
+      }
       create_primka: {
         Args: {
           p_date?: string

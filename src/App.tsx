@@ -7,6 +7,7 @@ import Inventory from "./pages/Inventory";
 import Articles from "./pages/Articles";
 import Projects from "./pages/Projects";
 import NovaPrimka from "./pages/NovaPrimka";
+import NovaOtpremnica from "./pages/NovaOtpremnica";
 import DocumentForm from "./pages/DocumentForm";
 import Reports from "./pages/Reports";
 import SettingsPage from "./pages/SettingsPage";
@@ -25,7 +26,7 @@ const App = () => (
           <Route path="/artikli" element={<Articles />} />
           <Route path="/projekti" element={<Projects />} />
           <Route path="/primka" element={<NovaPrimka />} />
-          <Route path="/otpremnica" element={<DocumentForm docType="out" />} />
+          <Route path="/otpremnica" element={<NovaOtpremnica />} />
           <Route path="/povrat" element={<DocumentForm docType="return" />} />
           <Route path="/izvjestaji" element={<Reports />} />
           <Route path="/postavke" element={<SettingsPage />} />
