@@ -8,7 +8,7 @@ import Articles from "./pages/Articles";
 import Projects from "./pages/Projects";
 import NovaPrimka from "./pages/NovaPrimka";
 import NovaOtpremnica from "./pages/NovaOtpremnica";
-import DocumentForm from "./pages/DocumentForm";
+import PovratMaterijala from "./pages/PovratMaterijala";
 import Reports from "./pages/Reports";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
@@ -27,7 +27,7 @@ const App = () => (
           <Route path="/projekti" element={<Projects />} />
           <Route path="/primka" element={<NovaPrimka />} />
           <Route path="/otpremnica" element={<NovaOtpremnica />} />
-          <Route path="/povrat" element={<DocumentForm docType="return" />} />
+          <Route path="/povrat" element={<PovratMaterijala />} />
           <Route path="/izvjestaji" element={<Reports />} />
           <Route path="/postavke" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />

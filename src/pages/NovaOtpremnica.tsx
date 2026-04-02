@@ -11,7 +11,7 @@ import { useState, useMemo } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { generateOtpremnicaPDF } from "@/lib/pdf-otpremnica";
+import { generateDocumentPDF } from "@/lib/pdf-generators";
 
 interface DocItem {
   article_id: string;
@@ -144,15 +144,20 @@ export default function NovaOtpremnica() {
 
       // Generate PDF
       const project = projects?.find(p => p.id === form.project_id);
-      generateOtpremnicaPDF({
+      generateDocumentPDF({
+        title: "OTPREMNICA",
         doc_number: data.doc_number,
         date: data.date || form.date,
-        recipient_name: data.recipient_name || form.recipient_name,
-        recipient_address: data.recipient_address || form.recipient_address,
-        project_name: project?.name,
-        location_code: selectedLocationCode,
-        issued_by: data.issued_by || form.issued_by,
-        received_by: data.received_by || form.received_by,
+        leftLabel1: "Primatelj",
+        leftValue1: data.recipient_name || form.recipient_name,
+        leftLabel2: "Adresa",
+        leftValue2: data.recipient_address || form.recipient_address || undefined,
+        rightLabel: "Projekt / Lokacija",
+        rightValue: [project?.name, selectedLocationCode].filter(Boolean).join(" / Lok. "),
+        sigLeftLabel: "Izdao",
+        sigLeftValue: data.issued_by || form.issued_by,
+        sigRightLabel: "Primio",
+        sigRightValue: data.received_by || form.received_by,
         items: validItems.map((item, idx) => {
           const article = articles?.find(a => a.id === item.article_id);
           return {
