@@ -188,7 +188,11 @@ export default function PovratMaterijala() {
       toast.success(`Povratnica ${docNumber} uspješno kreirana`);
       navigate("/projekti");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => {
+      console.error("Povratnica error:", e);
+      const msg = e?.message || e?.details || "Nepoznata greška pri spremanju povratnice";
+      toast.error(msg, { duration: 8000 });
+    },
   });
 
   const addItem = () => setItems([...items, { article_id: "", quantity: 1, unit: "kom", note: "", override_reason: "" }]);
