@@ -170,8 +170,19 @@ export default function Inventory() {
         .select().single();
       if (docErr) throw docErr;
 
+      // Get current stock per article at this location to zero it out first
+      const { data: currentStock } = await supabase
+        .from("inventory_current_per_location")
+        .select("article_id, current_qty")
+        .eq("stock_location_id", obLocation);
+      const stockMap = new Map(
+        (currentStock || []).map(s => [s.article_id, Number(s.current_qty) || 0])
+      );
+
       for (const [articleId, qty] of itemsToCreate) {
         const article = articles?.find(a => a.id === articleId);
+        const existingQty = stockMap.get(articleId) || 0;
+
         const { data: item, error: itemErr } = await supabase
           .from("document_items")
           .insert({
@@ -184,6 +195,23 @@ export default function Inventory() {
           .select().single();
         if (itemErr) throw itemErr;
 
+        // Zero out existing stock first
+        if (existingQty > 0) {
+          const { error: zeroErr } = await supabase
+            .from("inventory_transactions")
+            .insert({
+              article_id: articleId,
+              type: "adjustment_out",
+              quantity: existingQty,
+              stock_location_id: obLocation,
+              document_id: doc.id,
+              document_item_id: item.id,
+              note: "Auto zero-out before opening balance",
+            });
+          if (zeroErr) throw zeroErr;
+        }
+
+        // Now insert the desired absolute quantity
         const { error: txnErr } = await supabase
           .from("inventory_transactions")
           .insert({
