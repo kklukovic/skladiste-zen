@@ -186,7 +186,11 @@ export default function NovaOtpremnica() {
       toast.success(`Otpremnica ${docNumber} uspješno kreirana`);
       navigate("/");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => {
+      console.error("Otpremnica error:", e);
+      const msg = e?.message || e?.details || "Nepoznata greška pri spremanju otpremnice";
+      toast.error(msg, { duration: 8000 });
+    },
   });
 
   const addItem = () => setItems([...items, { article_id: "", quantity: 1, unit: "kom", note: "" }]);

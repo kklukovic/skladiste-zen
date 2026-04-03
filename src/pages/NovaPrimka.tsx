@@ -82,7 +82,11 @@ export default function NovaPrimka() {
       toast.success(`Primka ${data.doc_number} uspješno kreirana`);
       navigate("/");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => {
+      console.error("Primka error:", e);
+      const msg = e?.message || e?.details || "Nepoznata greška pri spremanju primke";
+      toast.error(msg, { duration: 8000 });
+    },
   });
 
   const addItem = () => setItems([...items, { article_id: "", quantity: 1, unit: "kom", unit_price: 0, note: "" }]);
