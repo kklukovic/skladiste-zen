@@ -57,9 +57,9 @@ export default function PovratMaterijala() {
   });
 
   const { data: projects } = useQuery({
-    queryKey: ["projects_all"],
+    queryKey: ["projects_active"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("*").order("name");
+      const { data, error } = await supabase.from("projects").select("*").eq("status", "active").order("name");
       if (error) throw error;
       return data;
     },
