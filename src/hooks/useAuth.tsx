@@ -49,12 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) fetchProfile(u.id);
-      else setLoading(false);
-    });
+supabase.auth.getSession().then(({ data: { session } }) => {
+  const u = session?.user ?? null;
+  setUser(u);
+  if (u) {
+    fetchProfile(u.id).finally(() => setLoading(false)); // ← FIX
+  } else {
+    setLoading(false);
+  }
+});
 
     return () => subscription.unsubscribe();
   }, []);
