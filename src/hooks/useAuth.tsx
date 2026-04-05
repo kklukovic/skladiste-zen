@@ -27,17 +27,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-    if (data) setProfile(data as Profile);
+    try {
+      // Timeout after 5 seconds — never freeze forever
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 5000)
+      );
+      const query = supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const { data } = await Promise.race([query, timeout]) as any;
+      if (data) setProfile(data as Profile);
+    } catch (err) {
+      console.warn("fetchProfile failed or timed out:", err);
+      // Don't freeze — just continue without profile
+    }
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    // Always set loading to false after max 6 seconds
+    const safetyTimeout = setTimeout(() => {
+      if (mounted) {
+        console.warn("Auth loading timeout — forcing load complete");
+        setLoading(false);
+      }
+    }, 6000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return;
         const u = session?.user ?? null;
         setUser(u);
         if (u) {
@@ -45,21 +67,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(null);
         }
-        setLoading(false);
+        if (mounted) setLoading(false);
+        clearTimeout(safetyTimeout);
       }
     );
 
-supabase.auth.getSession().then(({ data: { session } }) => {
-  const u = session?.user ?? null;
-  setUser(u);
-  if (u) {
-    fetchProfile(u.id).finally(() => setLoading(false)); // ← FIX
-  } else {
-    setLoading(false);
-  }
-});
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        fetchProfile(u.id).finally(() => {
+          if (mounted) setLoading(false);
+          clearTimeout(safetyTimeout);
+        });
+      } else {
+        setLoading(false);
+        clearTimeout(safetyTimeout);
+      }
+    });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
