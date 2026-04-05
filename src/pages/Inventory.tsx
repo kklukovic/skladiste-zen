@@ -374,7 +374,17 @@ export default function Inventory() {
             <div className="space-y-4">
               <div>
                 <Label>Skladišna lokacija *</Label>
-                <Select value={obLocation} onValueChange={setObLocation}>
+  <Select value={obLocation} onValueChange={(locationId) => {
+  setObLocation(locationId);
+  const quantities: Record<string, number> = {};
+  articles?.forEach(a => {
+    const locationStock = perLocation?.find(
+      p => p.article_id === a.id && p.stock_location_id === locationId
+    );
+    quantities[a.id] = Number(locationStock?.current_qty) || 0;
+  });
+  setObQuantities(quantities);
+}}>
                   <SelectTrigger><SelectValue placeholder="Odaberi lokaciju" /></SelectTrigger>
                   <SelectContent>
                     {locations?.map(l => <SelectItem key={l.id} value={l.id}>{l.name} ({l.code})</SelectItem>)}
