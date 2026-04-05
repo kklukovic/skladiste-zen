@@ -137,7 +137,7 @@ export default function Inventory() {
     const quantities: Record<string, number> = {};
     articles?.forEach(a => {
       const inv = inventory?.find(i => i.id === a.id);
-      quantities[a.id] = Number(inv?.current_qty) || 0;
+      quantities[a.id] = 0;
     });
     setObQuantities(quantities);
     setObLocation("");
