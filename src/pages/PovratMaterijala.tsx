@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Trash2, Save, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -83,7 +83,13 @@ export default function PovratMaterijala() {
     },
   });
 
-  // Max return per article for selected project
+  // Default to first location
+  useEffect(() => {
+    if (locations && locations.length > 0 && !form.stock_location_id) {
+      setForm(prev => ({ ...prev, stock_location_id: locations[0].id }));
+    }
+  }, [locations]);
+
   const maxReturn = useMemo(() => {
     if (!transactions || !form.project_id) return new Map<string, number>();
     const map = new Map<string, number>();
@@ -96,7 +102,6 @@ export default function PovratMaterijala() {
     return map;
   }, [transactions, form.project_id]);
 
-  // Check which rows exceed max return
   const rowWarnings = useMemo(() => {
     return items.map(item => {
       if (!item.article_id || !form.project_id) return { exceeded: false, max: 0 };
@@ -105,7 +110,6 @@ export default function PovratMaterijala() {
     });
   }, [items, maxReturn, form.project_id]);
 
-  // Block submit if any exceeded row is missing override reason
   const hasUnresolvedOverrides = items.some((item, idx) =>
     rowWarnings[idx].exceeded && !item.override_reason.trim()
   );
@@ -118,9 +122,8 @@ export default function PovratMaterijala() {
       if (validItems.length === 0) throw new Error("Dodajte barem jednu stavku");
       if (hasUnresolvedOverrides) throw new Error("Unesite razlog za stavke koje prelaze izdanu količinu");
 
-      // Build note with override reasons
       const overrideNotes = validItems
-        .map((item, idx) => {
+        .map((item) => {
           const origIdx = items.indexOf(item);
           if (rowWarnings[origIdx]?.exceeded && item.override_reason) {
             const article = articles?.find(a => a.id === item.article_id);
@@ -150,7 +153,6 @@ export default function PovratMaterijala() {
       if (result.error) throw result.error;
       const data = result.data as { id: string; doc_number: string; date: string; returned_by: string; received_by: string };
 
-      // Generate PDF
       const project = projects?.find(p => p.id === form.project_id);
       const location = locations?.find(l => l.id === form.stock_location_id);
       generateDocumentPDF({
@@ -207,7 +209,6 @@ export default function PovratMaterijala() {
     setItems(updated);
   };
 
-  // Get articles that were issued to this project
   const projectArticleIds = useMemo(() => {
     if (!transactions || !form.project_id) return new Set<string>();
     return new Set(
@@ -316,8 +317,8 @@ export default function PovratMaterijala() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min="0.01" step="0.01" value={item.quantity}
-                          onChange={e => updateItem(idx, "quantity", Number(e.target.value))} />
+                        <Input type="number" min="1" step="1" value={item.quantity}
+                          onChange={e => updateItem(idx, "quantity", Math.max(1, Math.round(Number(e.target.value))))} />
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{item.unit}</span>

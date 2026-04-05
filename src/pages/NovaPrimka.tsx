@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -52,6 +52,13 @@ export default function NovaPrimka() {
       return data;
     },
   });
+
+  // Default to first location
+  useEffect(() => {
+    if (locations && locations.length > 0 && !form.stock_location_id) {
+      setForm(prev => ({ ...prev, stock_location_id: locations[0].id }));
+    }
+  }, [locations]);
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -171,8 +178,8 @@ export default function NovaPrimka() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Input type="number" min="0.01" step="0.01" value={item.quantity}
-                        onChange={e => updateItem(idx, "quantity", Number(e.target.value))} />
+                      <Input type="number" min="1" step="1" value={item.quantity}
+                        onChange={e => updateItem(idx, "quantity", Math.max(1, Math.round(Number(e.target.value))))} />
                     </TableCell>
                     <TableCell>
                       <Input type="number" step="0.01" value={item.unit_price}

@@ -1,6 +1,16 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { LOGO_BASE64 } from "@/lib/logo-base64";
+import { ROBOTO_REGULAR_BASE64 } from "@/lib/roboto-regular-base64";
+import { ROBOTO_BOLD_BASE64 } from "@/lib/roboto-bold-base64";
+
+function setupCroatianFont(doc: jsPDF) {
+  doc.addFileToVFS("Roboto-Regular.ttf", ROBOTO_REGULAR_BASE64);
+  doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+  doc.addFileToVFS("Roboto-Bold.ttf", ROBOTO_BOLD_BASE64);
+  doc.addFont("Roboto-Bold.ttf", "Roboto", "bold");
+  doc.setFont("Roboto", "normal");
+}
 
 export function formatDateHR(dateStr: string): string {
   const d = new Date(dateStr);
@@ -27,6 +37,7 @@ interface DocumentPDFData {
 
 export function generateDocumentPDF(data: DocumentPDFData) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  setupCroatianFont(doc);
   const pw = doc.internal.pageSize.getWidth();
   const m = 15;
   let y = m;
@@ -34,12 +45,12 @@ export function generateDocumentPDF(data: DocumentPDFData) {
   try { doc.addImage(LOGO_BASE64, "SVG", m, y, 40, 20); } catch {}
 
   doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
+  doc.setFont("Roboto", "bold");
   doc.text(data.title, pw - m, y + 8, { align: "right" });
 
   y += 25;
   doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Roboto", "normal");
   doc.text(data.company.name, m, y);
   doc.text(`Broj: ${data.doc_number}`, pw - m, y, { align: "right" });
   y += 5;
@@ -53,11 +64,11 @@ export function generateDocumentPDF(data: DocumentPDFData) {
   doc.line(m, y, pw - m, y);
 
   y += 7;
-  doc.setFont("helvetica", "bold");
+  doc.setFont("Roboto", "bold");
   doc.text(`${data.leftLabel1}:`, m, y);
   doc.text(`${data.rightLabel}:`, pw / 2, y);
   y += 5;
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Roboto", "normal");
   doc.text(data.leftValue1 || "-", m, y);
   doc.text(data.rightValue || "-", pw / 2, y);
   if (data.leftLabel2 && data.leftValue2) {
@@ -71,12 +82,12 @@ export function generateDocumentPDF(data: DocumentPDFData) {
 
   autoTable(doc, {
     startY: y,
-    head: [["Rb.", "Sifra", "Naziv", "JMJ", "Kolicina"]],
+    head: [["Rb.", "Šifra", "Naziv", "JMJ", "Količina"]],
     body: data.items.map(item => [
       item.index.toString(), item.code, item.name, item.unit, item.quantity.toString(),
     ]),
     margin: { left: m, right: m },
-    styles: { fontSize: 9, cellPadding: 3 },
+    styles: { fontSize: 9, cellPadding: 3, font: "Roboto" },
     headStyles: { fillColor: [33, 152, 130], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
     columnStyles: {
@@ -94,11 +105,11 @@ export function generateDocumentPDF(data: DocumentPDFData) {
   doc.line(m, sigY, m + 60, sigY);
   doc.line(pw - m - 60, sigY, pw - m, sigY);
   doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Roboto", "normal");
   doc.text(`${data.sigLeftLabel}:`, m, sigY + 5);
   doc.text(`${data.sigRightLabel}:`, pw - m - 60, sigY + 5);
-  if (data.sigLeftValue) { doc.setFont("helvetica", "bold"); doc.text(data.sigLeftValue, m, sigY + 10); }
-  if (data.sigRightValue) { doc.setFont("helvetica", "bold"); doc.text(data.sigRightValue, pw - m - 60, sigY + 10); }
+  if (data.sigLeftValue) { doc.setFont("Roboto", "bold"); doc.text(data.sigLeftValue, m, sigY + 10); }
+  if (data.sigRightValue) { doc.setFont("Roboto", "bold"); doc.text(data.sigRightValue, pw - m - 60, sigY + 10); }
 
   doc.save(`${data.doc_number}.pdf`);
 }
@@ -110,6 +121,7 @@ export function generateInventoryPDF(data: {
   locationName?: string;
 }) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  setupCroatianFont(doc);
   const pw = doc.internal.pageSize.getWidth();
   const m = 15;
   let y = m;
@@ -117,12 +129,12 @@ export function generateInventoryPDF(data: {
   try { doc.addImage(LOGO_BASE64, "SVG", m, y, 40, 20); } catch {}
 
   doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
+  doc.setFont("Roboto", "bold");
   doc.text("INVENTURNA LISTA", pw - m, y + 8, { align: "right" });
 
   y += 25;
   doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Roboto", "normal");
   doc.text(data.company.name, m, y);
   y += 5;
   doc.text(`OIB: ${data.company.oib}`, m, y);
@@ -148,10 +160,10 @@ export function generateInventoryPDF(data: {
 
   autoTable(doc, {
     startY: y,
-    head: [["Rb.", "Sifra", "Naziv", "JMJ", "Kolicina", "Nab. cijena", "Vrijednost"]],
+    head: [["Rb.", "Šifra", "Naziv", "JMJ", "Količina", "Nab. cijena", "Vrijednost"]],
     body: bodyRows,
     margin: { left: m, right: m },
-    styles: { fontSize: 8, cellPadding: 2.5 },
+    styles: { fontSize: 8, cellPadding: 2.5, font: "Roboto" },
     headStyles: { fillColor: [33, 152, 130], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
     columnStyles: {
@@ -179,6 +191,7 @@ export function generateProjectReportPDF(data: {
   totals: { issued: number; returned: number; net: number };
 }) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  setupCroatianFont(doc);
   const pw = doc.internal.pageSize.getWidth();
   const m = 15;
   let y = m;
@@ -186,12 +199,12 @@ export function generateProjectReportPDF(data: {
   try { doc.addImage(LOGO_BASE64, "SVG", m, y, 40, 20); } catch {}
 
   doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("IZVJESTAJ PO PROJEKTU", pw - m, y + 8, { align: "right" });
+  doc.setFont("Roboto", "bold");
+  doc.text("IZVJEŠTAJ PO PROJEKTU", pw - m, y + 8, { align: "right" });
 
   y += 25;
   doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Roboto", "normal");
   doc.text(data.company.name, m, y);
   y += 5;
   doc.text(`OIB: ${data.company.oib}`, m, y);
@@ -199,14 +212,14 @@ export function generateProjectReportPDF(data: {
   doc.text(`${data.company.address}, ${data.company.city}`, m, y);
 
   y += 10;
-  doc.setFont("helvetica", "bold");
+  doc.setFont("Roboto", "bold");
   doc.text(`Projekt: ${data.project.name}`, m, y);
   y += 5;
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Roboto", "normal");
   if (data.project.address) { doc.text(`Adresa: ${data.project.address}`, m, y); y += 5; }
   doc.text(`Razdoblje: ${data.project.period}`, m, y);
   y += 5;
-  doc.text(`Datum izvjestaja: ${formatDateHR(new Date().toISOString())}`, m, y);
+  doc.text(`Datum izvještaja: ${formatDateHR(new Date().toISOString())}`, m, y);
 
   y += 8;
   doc.setDrawColor(200);
@@ -221,10 +234,10 @@ export function generateProjectReportPDF(data: {
 
   autoTable(doc, {
     startY: y,
-    head: [["Rb.", "Sifra", "Naziv", "JMJ", "Izdano", "Vraceno", "Neto utrosak"]],
+    head: [["Rb.", "Šifra", "Naziv", "JMJ", "Izdano", "Vraćeno", "Neto utrošak"]],
     body: bodyRows,
     margin: { left: m, right: m },
-    styles: { fontSize: 8, cellPadding: 2.5 },
+    styles: { fontSize: 8, cellPadding: 2.5, font: "Roboto" },
     headStyles: { fillColor: [33, 152, 130], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
     columnStyles: {

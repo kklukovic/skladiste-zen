@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -87,11 +87,16 @@ export default function NovaOtpremnica() {
     },
   });
 
-  // Get selected location code
+  // Default to first location
+  useEffect(() => {
+    if (locations && locations.length > 0 && !form.stock_location_id) {
+      setForm(prev => ({ ...prev, stock_location_id: locations[0].id }));
+    }
+  }, [locations]);
+
   const selectedLocation = locations?.find(l => l.id === form.stock_location_id);
   const selectedLocationCode = selectedLocation?.code || "";
 
-  // Available stock at selected location
   const stockAtLocation = useMemo(() => {
     if (!perLocation || !selectedLocationCode) return new Map<string, number>();
     const map = new Map<string, number>();
@@ -103,7 +108,6 @@ export default function NovaOtpremnica() {
     return map;
   }, [perLocation, selectedLocationCode]);
 
-  // Validation errors per row
   const rowErrors = useMemo(() => {
     return items.map(item => {
       if (!item.article_id || !form.stock_location_id) return "";
@@ -144,7 +148,6 @@ export default function NovaOtpremnica() {
       if (result.error) throw result.error;
       const data = result.data as { id: string; doc_number: string; date: string; recipient_name: string; recipient_address: string; issued_by: string; received_by: string };
 
-      // Generate PDF
       const project = projects?.find(p => p.id === form.project_id);
       generateDocumentPDF({
         title: "OTPREMNICA",
@@ -162,13 +165,7 @@ export default function NovaOtpremnica() {
         sigRightValue: data.received_by || form.received_by,
         items: validItems.map((item, idx) => {
           const article = articles?.find(a => a.id === item.article_id);
-          return {
-            index: idx + 1,
-            code: article?.code || "",
-            name: article?.name || "",
-            unit: item.unit,
-            quantity: item.quantity,
-          };
+          return { index: idx + 1, code: article?.code || "", name: article?.name || "", unit: item.unit, quantity: item.quantity };
         }),
         company: {
           name: settings?.company_name || "COREX ING d.o.o.",
@@ -274,7 +271,6 @@ export default function NovaOtpremnica() {
               <TableBody>
                 {items.map((item, idx) => {
                   const available = item.article_id ? (stockAtLocation.get(item.article_id) || 0) : 0;
-                  const article = articles?.find(a => a.id === item.article_id);
                   return (
                     <TableRow key={idx}>
                       <TableCell>
@@ -298,10 +294,10 @@ export default function NovaOtpremnica() {
                       <TableCell>
                         <Input
                           type="number"
-                          min="0.01"
-                          step="0.01"
+                          min="1"
+                          step="1"
                           value={item.quantity}
-                          onChange={e => updateItem(idx, "quantity", Number(e.target.value))}
+                          onChange={e => updateItem(idx, "quantity", Math.max(1, Math.round(Number(e.target.value))))}
                         />
                       </TableCell>
                       <TableCell>

@@ -103,21 +103,24 @@ export default function SettingsPage() {
     setBackupLoading(true);
     try {
       const now = new Date();
-      const d90 = new Date(now.getTime() - 90 * 86400000).toISOString();
 
-      const [{ data: inv }, { data: txns }, { data: docs }, { data: projs }] = await Promise.all([
+      const [{ data: arts }, { data: inv }, { data: txns }, { data: docs }, { data: projs }, { data: locs }, { data: docItems }] = await Promise.all([
+        supabase.from("articles").select("*").order("code"),
         supabase.from("inventory_current").select("*"),
-        supabase.from("inventory_transactions").select("*").gte("created_at", d90).order("created_at", { ascending: false }),
-        supabase.from("documents").select("*").gte("created_at", d90).order("created_at", { ascending: false }),
+        supabase.from("inventory_transactions").select("*").order("created_at", { ascending: false }),
+        supabase.from("documents").select("*").order("created_at", { ascending: false }),
         supabase.from("projects").select("*"),
+        supabase.from("stock_locations").select("*").order("code"),
+        supabase.from("document_items").select("*"),
       ]);
-
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inv || []), "Artikli");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(arts || []), "Artikli");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inv || []), "Stanje zalihe");
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(txns || []), "Transakcije");
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(docs || []), "Dokumenti");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(docItems || []), "Stavke dokumenata");
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(projs || []), "Projekti");
-
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(locs || []), "Lokacije");
       const dateStr = now.toISOString().slice(0, 10);
       XLSX.writeFile(wb, `CorexING-backup-${dateStr}.xlsx`);
       toast.success("Backup preuzet");
@@ -289,7 +292,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader><CardTitle>Ručni backup</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">Preuzmi Excel backup s artiklima, transakcijama, dokumentima i projektima (zadnjih 90 dana).</p>
+            <p className="text-sm text-muted-foreground mb-3">Preuzmi kompletni Excel backup s artiklima, zalihom, transakcijama, dokumentima, projektima i lokacijama.</p>
             <Button variant="outline" onClick={doBackup} disabled={backupLoading}>
               <Download className="mr-2 h-4 w-4" />{backupLoading ? "Priprema..." : "Preuzmi backup (Excel)"}
             </Button>
