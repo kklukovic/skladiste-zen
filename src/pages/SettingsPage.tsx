@@ -114,11 +114,13 @@ export default function SettingsPage() {
         supabase.from("document_items").select("*"),
       ]);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inv || []), "Artikli");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(arts || []), "Artikli");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inv || []), "Stanje zalihe");
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(txns || []), "Transakcije");
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(docs || []), "Dokumenti");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(docItems || []), "Stavke dokumenata");
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(projs || []), "Projekti");
-
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(locs || []), "Lokacije");
       const dateStr = now.toISOString().slice(0, 10);
       XLSX.writeFile(wb, `CorexING-backup-${dateStr}.xlsx`);
       toast.success("Backup preuzet");
