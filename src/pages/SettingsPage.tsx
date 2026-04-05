@@ -292,7 +292,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader><CardTitle>Ručni backup</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">Preuzmi Excel backup s artiklima, transakcijama, dokumentima i projektima (zadnjih 90 dana).</p>
+            <p className="text-sm text-muted-foreground mb-3">Preuzmi kompletni Excel backup s artiklima, zalihom, transakcijama, dokumentima, projektima i lokacijama.</p>
             <Button variant="outline" onClick={doBackup} disabled={backupLoading}>
               <Download className="mr-2 h-4 w-4" />{backupLoading ? "Priprema..." : "Preuzmi backup (Excel)"}
             </Button>

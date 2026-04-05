@@ -10,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
-import { Plus, Pencil, Search, ArrowLeft, Download, FileText } from "lucide-react";
+import { Plus, Pencil, ArrowLeft, Download, FileText, MoreHorizontal, Archive, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -84,6 +84,26 @@ export default function Projects() {
     onError: (e) => toast.error(e.message),
   });
 
+  const archiveProject = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("projects").update({ status: "archived" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["projects"] }); toast.success("Projekt arhiviran"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteProject = useMutation({
+    mutationFn: async (id: string) => {
+      const { count } = await supabase.from("documents").select("id", { count: "exact", head: true }).eq("project_id", id);
+      if (count && count > 0) throw new Error("Projekt ima povezane dokumente i ne može se obrisati");
+      const { error } = await supabase.from("projects").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["projects"] }); toast.success("Projekt obrisan"); },
+    onError: (e) => toast.error(e.message),
+  });
+
   const filtered = projects?.filter(p => statusFilter === "all" || p.status === statusFilter);
 
   const getDocCount = (projectId: string) => documents?.filter(d => d.project_id === projectId).length || 0;
@@ -96,7 +116,6 @@ export default function Projects() {
     const projectDocs = documents?.filter(d => d.project_id === selectedProject) || [];
     const projectTxns = transactions?.filter(t => t.project_id === selectedProject) || [];
 
-    // Aggregate material
     const materialMap = new Map<string, { issued: number; returned: number }>();
     projectTxns.forEach(t => {
       const key = t.article_id;
@@ -109,12 +128,8 @@ export default function Projects() {
     const materialRows = Array.from(materialMap.entries()).map(([articleId, data]) => {
       const article = articles?.find(a => a.id === articleId);
       return {
-        code: article?.code || "",
-        name: article?.name || "",
-        unit: article?.unit || "",
-        issued: data.issued,
-        returned: data.returned,
-        net: data.issued - data.returned,
+        code: article?.code || "", name: article?.name || "", unit: article?.unit || "",
+        issued: data.issued, returned: data.returned, net: data.issued - data.returned,
       };
     });
 
@@ -297,7 +312,7 @@ export default function Projects() {
                 <TableHead>Adresa objekta</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Br. dokumenata</TableHead>
-                <TableHead className="w-16">Akcije</TableHead>
+                <TableHead className="w-24">Akcije</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -322,13 +337,33 @@ export default function Projects() {
                       <TableCell><Badge className={sc.className}>{sc.label}</Badge></TableCell>
                       <TableCell className="text-right">{getDocCount(p.id)}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => {
-                          setEditing(p.id);
-                          setForm({ name: p.name, site_address: p.site_address || "", note: p.note || "", status: p.status || "active" });
-                          setOpen(true);
-                        }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              setEditing(p.id);
+                              setForm({ name: p.name, site_address: p.site_address || "", note: p.note || "", status: p.status || "active" });
+                              setOpen(true);
+                            }}>
+                              <Pencil className="mr-2 h-4 w-4" />Uredi
+                            </DropdownMenuItem>
+                            {p.status !== "archived" && (
+                              <DropdownMenuItem onClick={() => archiveProject.mutate(p.id)}>
+                                <Archive className="mr-2 h-4 w-4" />Arhiviraj
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => deleteProject.mutate(p.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />Obriši
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );

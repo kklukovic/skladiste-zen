@@ -401,7 +401,7 @@ export default function Inventory() {
                           <Input
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="1"
                             value={obQuantities[a.id] || 0}
                             onChange={(e) => setObQuantities(prev => ({ ...prev, [a.id]: Number(e.target.value) }))}
                           />
