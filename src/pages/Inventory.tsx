@@ -147,8 +147,8 @@ export default function Inventory() {
   const submitOpeningBalance = useMutation({
     mutationFn: async () => {
       if (!obLocation) throw new Error("Odaberite lokaciju");
-      const itemsToCreate = Object.entries(obQuantities).filter(([, qty]) => qty > 0);
-      if (itemsToCreate.length === 0) throw new Error("Unesite barem jednu količinu");
+const itemsToCreate = Object.entries(obQuantities);
+if (itemsToCreate.length === 0) throw new Error("Nema artikala");
 
       const year = new Date().getFullYear();
       const { count } = await supabase
