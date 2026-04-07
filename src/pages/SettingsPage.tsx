@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
-import { Save, Plus, Pencil, Trash2, Download, Database } from "lucide-react";
+import { Save, Plus, Pencil, Trash2, Download, Database, User } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function SettingsPage() {
   const qc = useQueryClient();
