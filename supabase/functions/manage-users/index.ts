@@ -18,11 +18,11 @@ Deno.serve(async (req) => {
     });
 
     // Verify caller is admin
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
+    if (!token) throw new Error("Not authenticated");
     const { data: { user: caller } } = await adminClient.auth.getUser(token);
     if (!caller) throw new Error("Not authenticated");
-
     const { data: callerProfile } = await adminClient
       .from("profiles")
       .select("role")
