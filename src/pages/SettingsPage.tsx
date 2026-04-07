@@ -246,6 +246,21 @@ export default function SettingsPage() {
   return (
     <AppLayout title="Postavke">
       <div className="space-y-6 max-w-3xl">
+        {/* SECTION 0 — Profile */}
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Moj profil</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={(e) => { e.preventDefault(); saveUsername.mutate(); }} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><Label>Email</Label><Input value={profile?.email || ""} disabled /></div>
+                <div><Label>Uloga</Label><Input value={profile?.role || ""} disabled /></div>
+                <div><Label>Korisničko ime</Label><Input value={username} onChange={e => setUsername(e.target.value)} required /></div>
+              </div>
+              <Button type="submit" disabled={saveUsername.isPending}><Save className="mr-2 h-4 w-4" />{saveUsername.isPending ? "Spremanje..." : "Spremi ime"}</Button>
+            </form>
+          </CardContent>
+        </Card>
+
         {/* SECTION 1 — Company data */}
         <Card>
           <CardHeader><CardTitle>Podaci tvrtke</CardTitle></CardHeader>
