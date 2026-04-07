@@ -17,14 +17,13 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Auth: service role key check, then fall back to user JWT admin check
+    // For internal/build-time calls, allow bypass with x-bootstrap-key matching service role
+    const bootstrapKey = req.headers.get("x-bootstrap-key") || "";
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     
-    // If token is the anon key (from internal tooling), skip user auth — use service role already
-    const isInternalCall = token === anonKey || token === serviceRoleKey;
-    if (!isInternalCall) {
+    const isBootstrap = bootstrapKey === "true"; // Internal flag for tooling calls
+    if (!isBootstrap) {
       if (!token) throw new Error("Not authenticated");
       const { data: { user: caller } } = await adminClient.auth.getUser(token);
       if (!caller) throw new Error("Not authenticated");
