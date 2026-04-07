@@ -17,18 +17,21 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Verify caller is admin
-    const authHeader = req.headers.get("Authorization")!;
+    // Verify caller is admin (or service role)
+    const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user: caller } } = await adminClient.auth.getUser(token);
-    if (!caller) throw new Error("Not authenticated");
-
-    const { data: callerProfile } = await adminClient
-      .from("profiles")
-      .select("role")
-      .eq("id", caller.id)
-      .single();
-    if (callerProfile?.role !== "admin") throw new Error("Not admin");
+    
+    // Allow service role key as direct auth
+    if (token !== serviceRoleKey) {
+      const { data: { user: caller } } = await adminClient.auth.getUser(token);
+      if (!caller) throw new Error("Not authenticated");
+      const { data: callerProfile } = await adminClient
+        .from("profiles")
+        .select("role")
+        .eq("id", caller.id)
+        .single();
+      if (callerProfile?.role !== "admin") throw new Error("Not admin");
+    }
 
     const { action, users, emails_to_delete } = await req.json();
 
