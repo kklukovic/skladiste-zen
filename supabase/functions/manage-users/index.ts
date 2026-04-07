@@ -17,23 +17,18 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // For internal/build-time calls, allow bypass with x-bootstrap-key matching service role
-    const bootstrapKey = req.headers.get("x-bootstrap-key") || "";
+    // Verify caller is admin
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
-    
-    const isBootstrap = bootstrapKey === "true"; // Internal flag for tooling calls
-    if (!isBootstrap) {
-      if (!token) throw new Error("Not authenticated");
-      const { data: { user: caller } } = await adminClient.auth.getUser(token);
-      if (!caller) throw new Error("Not authenticated");
-      const { data: callerProfile } = await adminClient
-        .from("profiles")
-        .select("role")
-        .eq("id", caller.id)
-        .single();
-      if (callerProfile?.role !== "admin") throw new Error("Not admin");
-    }
+    if (!token) throw new Error("Not authenticated");
+    const { data: { user: caller } } = await adminClient.auth.getUser(token);
+    if (!caller) throw new Error("Not authenticated");
+    const { data: callerProfile } = await adminClient
+      .from("profiles")
+      .select("role")
+      .eq("id", caller.id)
+      .single();
+    if (callerProfile?.role !== "admin") throw new Error("Not admin");
 
     const { action, users, emails_to_delete } = await req.json();
 
