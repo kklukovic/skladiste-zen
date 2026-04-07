@@ -8,12 +8,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
-import { Save, Plus, Pencil, Trash2, Download, Database } from "lucide-react";
+import { Save, Plus, Pencil, Trash2, Download, Database, User } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function SettingsPage() {
   const qc = useQueryClient();
+  const { profile } = useAuth();
+
+  // ── Profile / username ──
+  const [username, setUsername] = useState("");
+  useEffect(() => {
+    if (profile?.username) setUsername(profile.username);
+  }, [profile]);
+
+  const saveUsername = useMutation({
+    mutationFn: async () => {
+      if (!profile) throw new Error("Niste prijavljeni");
+      const { error } = await supabase.from("profiles").update({ username }).eq("id", profile.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["profile"] }); toast.success("Korisničko ime spremljeno"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // ── Company form ──
   const [form, setForm] = useState({
@@ -228,6 +246,21 @@ export default function SettingsPage() {
   return (
     <AppLayout title="Postavke">
       <div className="space-y-6 max-w-3xl">
+        {/* SECTION 0 — Profile */}
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Moj profil</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={(e) => { e.preventDefault(); saveUsername.mutate(); }} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><Label>Email</Label><Input value={profile?.email || ""} disabled /></div>
+                <div><Label>Uloga</Label><Input value={profile?.role || ""} disabled /></div>
+                <div><Label>Korisničko ime</Label><Input value={username} onChange={e => setUsername(e.target.value)} required /></div>
+              </div>
+              <Button type="submit" disabled={saveUsername.isPending}><Save className="mr-2 h-4 w-4" />{saveUsername.isPending ? "Spremanje..." : "Spremi ime"}</Button>
+            </form>
+          </CardContent>
+        </Card>
+
         {/* SECTION 1 — Company data */}
         <Card>
           <CardHeader><CardTitle>Podaci tvrtke</CardTitle></CardHeader>

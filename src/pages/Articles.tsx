@@ -14,8 +14,9 @@ import { toast } from "sonner";
 const CODE_REGEX = /^[A-Z]{2,4}-[0-9]{3}$/;
 const UNITS = ["kom", "m", "kg", "l", "par", "pak", "set"];
 const CATEGORY_SUGGESTIONS = [
-  "Klima uređaji", "Bakrene cijevi", "Nosači", "Šrafi i vijci",
-  "Izolacija", "Potrošni materijal", "Ostalo"
+  "Energy meter", "Inverter", "Kanalice", "Konektori", "Oprema",
+  "Fotonaponski moduli", "Potkonstrukcija", "Smart", "Vijčana roba",
+  "Vodiči", "Ostalo"
 ];
 
 interface ArticleForm {
