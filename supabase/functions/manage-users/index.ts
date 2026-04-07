@@ -17,12 +17,14 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Verify caller is admin (or service role)
+    // Verify caller: accept service role key via x-admin-key header or Authorization
     const authHeader = req.headers.get("Authorization") || "";
+    const adminKey = req.headers.get("x-admin-key") || "";
     const token = authHeader.replace("Bearer ", "");
     
-    // Allow service role key as direct auth
-    if (token !== serviceRoleKey) {
+    const isServiceRole = token === serviceRoleKey || adminKey === serviceRoleKey;
+    if (!isServiceRole) {
+      if (!token) throw new Error("Not authenticated");
       const { data: { user: caller } } = await adminClient.auth.getUser(token);
       if (!caller) throw new Error("Not authenticated");
       const { data: callerProfile } = await adminClient
