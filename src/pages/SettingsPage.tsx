@@ -15,6 +15,23 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function SettingsPage() {
   const qc = useQueryClient();
+  const { profile } = useAuth();
+
+  // ── Profile / username ──
+  const [username, setUsername] = useState("");
+  useEffect(() => {
+    if (profile?.username) setUsername(profile.username);
+  }, [profile]);
+
+  const saveUsername = useMutation({
+    mutationFn: async () => {
+      if (!profile) throw new Error("Niste prijavljeni");
+      const { error } = await supabase.from("profiles").update({ username }).eq("id", profile.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["profile"] }); toast.success("Korisničko ime spremljeno"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // ── Company form ──
   const [form, setForm] = useState({
