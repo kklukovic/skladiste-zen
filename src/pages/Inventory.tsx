@@ -16,13 +16,13 @@ import { toast } from "sonner";
 
 type InventoryRow = {
   id: string | null; code: string | null; name: string | null; unit: string | null;
-  category: string | null; purchase_price: number | null; min_quantity: number | null;
+  category: string | null; purchase_price: number | null; average_cost: number | null; min_quantity: number | null;
   current_qty: number | null; current_value: number | null;
 };
 
 type PerLocationRow = {
   article_id: string | null; code: string | null; name: string | null; unit: string | null;
-  purchase_price: number | null; stock_location_id: string | null; location_code: string | null;
+  purchase_price: number | null; average_cost: number | null; stock_location_id: string | null; location_code: string | null;
   current_qty: number | null;
 };
 
@@ -96,9 +96,10 @@ export default function Inventory() {
             unit: pl.unit,
             category: inv?.category ?? null,
             purchase_price: pl.purchase_price,
+            average_cost: pl.average_cost,
             min_quantity: inv?.min_quantity ?? 0,
             current_qty: pl.current_qty,
-            current_value: (Number(pl.current_qty) || 0) * (Number(pl.purchase_price) || 0),
+            current_value: (Number(pl.current_qty) || 0) * (Number(pl.average_cost) || 0),
           } as InventoryRow;
         });
     }
@@ -327,7 +328,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
                 <TableHead>JMJ</TableHead>
                 <TableHead className="text-right">Trenutna količina</TableHead>
                 <TableHead className="text-right">Min. količina</TableHead>
-                {isAdmin && <TableHead className="text-right">Nabavna cijena</TableHead>}
+                {isAdmin && <TableHead className="text-right">Prosječna cijena</TableHead>}
                 {isAdmin && <TableHead className="text-right">Vrijednost</TableHead>}
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -350,7 +351,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
                       <TableCell>{item.unit}</TableCell>
                       <TableCell className="text-right">{qty.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{min}</TableCell>
-                     {isAdmin && <TableCell className="text-right">{Number(item.purchase_price || 0).toFixed(2)} €</TableCell>}
+                     {isAdmin && <TableCell className="text-right">{Number(item.average_cost || 0).toFixed(2)} €</TableCell>}
 {isAdmin && <TableCell className="text-right font-medium">{Number(item.current_value || 0).toFixed(2)} €</TableCell>}
                       <TableCell>
                         {status === "ok" && <Badge className="bg-primary text-primary-foreground">OK</Badge>}

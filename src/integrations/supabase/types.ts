@@ -23,6 +23,7 @@ export type Database = {
           min_quantity: number | null
           name: string
           purchase_price: number | null
+          average_cost: number | null
           unit: string
         }
         Insert: {
@@ -33,6 +34,7 @@ export type Database = {
           min_quantity?: number | null
           name: string
           purchase_price?: number | null
+          average_cost?: number | null
           unit?: string
         }
         Update: {
@@ -43,6 +45,7 @@ export type Database = {
           min_quantity?: number | null
           name?: string
           purchase_price?: number | null
+          average_cost?: number | null
           unit?: string
         }
         Relationships: []
@@ -404,6 +407,7 @@ export type Database = {
           min_quantity: number | null
           name: string | null
           purchase_price: number | null
+          average_cost: number | null
           unit: string | null
         }
         Relationships: []
@@ -416,6 +420,7 @@ export type Database = {
           location_code: string | null
           name: string | null
           purchase_price: number | null
+          average_cost: number | null
           stock_location_id: string | null
           unit: string | null
         }

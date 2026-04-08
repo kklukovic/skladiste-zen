@@ -109,11 +109,30 @@ begin
     )
     returning id into v_item_id;
 
+    v_article_id := (v_item->>'article_id')::uuid;
+    v_new_qty := (v_item->>'quantity')::numeric;
+    v_unit_price := (v_item->>'unit_price')::numeric;
+
+    if (v_item->>'unit_price') is not null then
+      select coalesce(sum(case
+        when t.type in ('opening_balance','adjustment_in','in','return') then t.quantity
+        when t.type in ('adjustment_out','out') then -t.quantity
+      end), 0)
+      into v_current_qty
+      from inventory_transactions t
+      where t.article_id = v_article_id;
+
+      select average_cost
+      into v_current_avg
+      from articles
+      where id = v_article_id;
+    end if;
+
     insert into inventory_transactions (article_id, type, quantity, stock_location_id, document_id, document_item_id, created_by_user_id)
     values (
-      (v_item->>'article_id')::uuid,
+      v_article_id,
       'in',
-      (v_item->>'quantity')::numeric,
+      v_new_qty,
       p_stock_location_id,
       v_doc_id,
       v_item_id,
@@ -122,9 +141,13 @@ begin
 
     if (v_item->>'unit_price') is not null then
       update articles
-      set purchase_price = (v_item->>'unit_price')::numeric
-      where id = (v_item->>'article_id')::uuid
-        and purchase_price is distinct from (v_item->>'unit_price')::numeric;
+      set
+        average_cost = case
+          when v_current_qty + v_new_qty = 0 then 0
+          else (v_current_qty * coalesce(v_current_avg, 0) + v_new_qty * v_unit_price) / (v_current_qty + v_new_qty)
+        end,
+        purchase_price = v_unit_price
+      where id = v_article_id;
     end if;
   end loop;
 
