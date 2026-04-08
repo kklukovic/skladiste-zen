@@ -241,12 +241,19 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Ukupno artikala</CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{totalArticles}</div></CardContent>
-          </Card>
+{isAdmin && (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardTitle className="text-sm font-medium text-muted-foreground">Ukupna vrijednost zalihe</CardTitle>
+      <Boxes className="h-4 w-4 text-primary" />
+    </CardHeader>
+    <CardContent><div className="text-2xl font-bold">{totalValue.toFixed(2)} €</div></CardContent>
+  </Card>
+)}
+Napravi to + ona dva stupca u tablici pa commitas sve odjednom. 🚀
+
+
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Ukupna vrijednost zalihe</CardTitle>
@@ -329,8 +336,8 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
                 <TableHead>JMJ</TableHead>
                 <TableHead className="text-right">Trenutna količina</TableHead>
                 <TableHead className="text-right">Min. količina</TableHead>
-                <TableHead className="text-right">Nabavna cijena</TableHead>
-                <TableHead className="text-right">Vrijednost</TableHead>
+                {isAdmin && <TableHead className="text-right">Nabavna cijena</TableHead>}
+                {isAdmin && <TableHead className="text-right">Vrijednost</TableHead>}
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -352,8 +359,8 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
                       <TableCell>{item.unit}</TableCell>
                       <TableCell className="text-right">{qty.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{min}</TableCell>
-                      <TableCell className="text-right">{Number(item.purchase_price || 0).toFixed(2)} €</TableCell>
-                      <TableCell className="text-right font-medium">{Number(item.current_value || 0).toFixed(2)} €</TableCell>
+                     {isAdmin && <TableCell className="text-right">{Number(item.purchase_price || 0).toFixed(2)} €</TableCell>}
+{isAdmin && <TableCell className="text-right font-medium">{Number(item.current_value || 0).toFixed(2)} €</TableCell>}
                       <TableCell>
                         {status === "ok" && <Badge className="bg-primary text-primary-foreground">OK</Badge>}
                         {status === "niska" && <Badge className="bg-[hsl(30,90%,50%)] text-primary-foreground">NISKA ZALIHA</Badge>}
