@@ -125,6 +125,7 @@ export default function NovaOtpremnica() {
     mutationFn: async () => {
       const validItems = items.filter(i => i.article_id && i.quantity > 0);
       if (!form.stock_location_id) throw new Error("Odaberite skladišnu lokaciju");
+      if (!form.project_id) throw new Error("Odaberite projekt prije spremanja");
       if (validItems.length === 0) throw new Error("Dodajte barem jednu stavku");
       if (hasErrors) throw new Error("Ispravite greške prije spremanja");
 
@@ -222,7 +223,7 @@ export default function NovaOtpremnica() {
               </Select>
             </div>
             <div>
-              <Label>Projekt</Label>
+              <Label>Projekt *</Label>
               <Select value={form.project_id} onValueChange={v => setForm({ ...form, project_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Odaberi projekt" /></SelectTrigger>
                 <SelectContent>
