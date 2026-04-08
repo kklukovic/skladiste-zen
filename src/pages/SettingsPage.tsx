@@ -199,6 +199,7 @@ export default function SettingsPage() {
 
       const { error: obErr } = await supabase.rpc("create_primka", {
         p_stock_location_id: locA.id,
+        p_date: new Date().toISOString().slice(0, 10),
         p_note: "Početno stanje - demo",
         p_items: openingItems,
       });
