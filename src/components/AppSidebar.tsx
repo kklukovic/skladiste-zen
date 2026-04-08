@@ -37,9 +37,12 @@ export function AppSidebar() {
       <SidebarContent>
         <div className={`flex items-center gap-2 px-4 py-5 ${collapsed ? 'justify-center' : ''}`}>
           {!collapsed && (
-            <div>
-              <h1 className="text-base font-bold text-sidebar-primary">SkladišteApp</h1>
-              <p className="text-xs text-sidebar-foreground/70">COREX ING d.o.o.</p>
+            <div className="flex flex-col items-center gap-2">
+              <img src={logo} alt="COREX ING Logo" className="h-8 w-auto" />
+              <div className="text-center">
+                <h1 className="text-base font-bold text-sidebar-primary">SkladišteApp</h1>
+                <p className="text-xs text-sidebar-foreground/70">COREX ING d.o.o.</p>
+              </div>
             </div>
           )}
           {collapsed && <Boxes className="h-6 w-6 text-sidebar-primary" />}
