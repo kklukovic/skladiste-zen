@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       articles: {
         Row: {
+          average_cost: number | null
           category: string | null
           code: string
           created_at: string | null
@@ -23,10 +24,10 @@ export type Database = {
           min_quantity: number | null
           name: string
           purchase_price: number | null
-          average_cost: number | null
           unit: string
         }
         Insert: {
+          average_cost?: number | null
           category?: string | null
           code: string
           created_at?: string | null
@@ -34,10 +35,10 @@ export type Database = {
           min_quantity?: number | null
           name: string
           purchase_price?: number | null
-          average_cost?: number | null
           unit?: string
         }
         Update: {
+          average_cost?: number | null
           category?: string | null
           code?: string
           created_at?: string | null
@@ -45,7 +46,6 @@ export type Database = {
           min_quantity?: number | null
           name?: string
           purchase_price?: number | null
-          average_cost?: number | null
           unit?: string
         }
         Relationships: []
@@ -399,6 +399,7 @@ export type Database = {
     Views: {
       inventory_current: {
         Row: {
+          average_cost: number | null
           category: string | null
           code: string | null
           current_qty: number | null
@@ -407,7 +408,6 @@ export type Database = {
           min_quantity: number | null
           name: string | null
           purchase_price: number | null
-          average_cost: number | null
           unit: string | null
         }
         Relationships: []
@@ -415,12 +415,12 @@ export type Database = {
       inventory_current_per_location: {
         Row: {
           article_id: string | null
+          average_cost: number | null
           code: string | null
           current_qty: number | null
           location_code: string | null
           name: string | null
           purchase_price: number | null
-          average_cost: number | null
           stock_location_id: string | null
           unit: string | null
         }
@@ -456,7 +456,7 @@ export type Database = {
       }
       create_primka: {
         Args: {
-          p_date?: string
+          p_date: string
           p_items?: Json
           p_note?: string
           p_stock_location_id: string
