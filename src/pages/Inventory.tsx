@@ -239,17 +239,16 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
     <AppLayout title="Pregled zalihe">
       <div className="space-y-4">
         {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-{isAdmin && (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between pb-2">
-      <CardTitle className="text-sm font-medium text-muted-foreground">Ukupna vrijednost zalihe</CardTitle>
-      <Boxes className="h-4 w-4 text-primary" />
-    </CardHeader>
-    <CardContent><div className="text-2xl font-bold">{totalValue.toFixed(2)} €</div></CardContent>
-  </Card>
-)}
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {isAdmin && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Ukupna vrijednost zalihe</CardTitle>
+                <Boxes className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{totalValue.toFixed(2)} €</div></CardContent>
+            </Card>
+          )}
 
 
 
