@@ -252,13 +252,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
 )}
 
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Ukupna vrijednost zalihe</CardTitle>
-              <Boxes className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{totalValue.toFixed(2)} €</div></CardContent>
-          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Niska zaliha</CardTitle>
