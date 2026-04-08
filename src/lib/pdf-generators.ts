@@ -42,7 +42,7 @@ export function generateDocumentPDF(data: DocumentPDFData) {
   const m = 15;
   let y = m;
 
-  try { doc.addImage(LOGO_BASE64, "SVG", m, y, 40, 20); } catch {}
+  try { doc.addImage(LOGO_BASE64, "JPEG", m, y, 50, 15); } catch {}
 
   doc.setFontSize(18);
   doc.setFont("Roboto", "bold");
@@ -126,7 +126,7 @@ export function generateInventoryPDF(data: {
   const m = 15;
   let y = m;
 
-  try { doc.addImage(LOGO_BASE64, "SVG", m, y, 40, 20); } catch {}
+  try { doc.addImage(LOGO_BASE64, "JPEG", m, y, 50, 15); } catch {}
 
   doc.setFontSize(16);
   doc.setFont("Roboto", "bold");
@@ -196,7 +196,7 @@ export function generateProjectReportPDF(data: {
   const m = 15;
   let y = m;
 
-  try { doc.addImage(LOGO_BASE64, "SVG", m, y, 40, 20); } catch {}
+  try { doc.addImage(LOGO_BASE64, "JPEG", m, y, 50, 15); } catch {}
 
   doc.setFontSize(14);
   doc.setFont("Roboto", "bold");
