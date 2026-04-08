@@ -250,8 +250,6 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
     <CardContent><div className="text-2xl font-bold">{totalValue.toFixed(2)} €</div></CardContent>
   </Card>
 )}
-Napravi to + ona dva stupca u tablici pa commitas sve odjednom. 🚀
-
 
 
           <Card>
