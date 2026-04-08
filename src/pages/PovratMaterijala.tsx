@@ -188,7 +188,7 @@ export default function PovratMaterijala() {
       qc.invalidateQueries({ queryKey: ["inventory_per_location"] });
       qc.invalidateQueries({ queryKey: ["inventory_transactions"] });
       toast.success(`Povratnica ${docNumber} uspješno kreirana`);
-      navigate("/projekti");
+      navigate("/");
     },
     onError: (e: any) => {
       console.error("Povratnica error:", e);
@@ -229,20 +229,20 @@ export default function PovratMaterijala() {
               <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required />
             </div>
             <div>
-              <Label>Projekt *</Label>
-              <Select value={form.project_id} onValueChange={v => setForm({ ...form, project_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Odaberi projekt" /></SelectTrigger>
-                <SelectContent>
-                  {projects?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label>Skladišna lokacija *</Label>
               <Select value={form.stock_location_id} onValueChange={v => setForm({ ...form, stock_location_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Povrat NA lokaciju" /></SelectTrigger>
                 <SelectContent>
                   {locations?.map(l => <SelectItem key={l.id} value={l.id}>{l.name} ({l.code})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Projekt *</Label>
+              <Select value={form.project_id} onValueChange={v => setForm({ ...form, project_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Odaberi projekt" /></SelectTrigger>
+                <SelectContent>
+                  {projects?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
