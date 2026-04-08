@@ -92,6 +92,7 @@ export default function Reports() {
             return {
               id: pl.article_id, code: pl.code, name: pl.name, unit: pl.unit,
               category: inv?.category ?? null, purchase_price: pl.purchase_price,
+              average_cost: inv?.average_cost ?? 0,
               min_quantity: inv?.min_quantity ?? 0,
               current_qty: pl.current_qty,
               current_value: (Number(pl.current_qty) || 0) * (Number(pl.purchase_price) || 0),
