@@ -192,6 +192,13 @@ export type Database = {
             referencedRelation: "stock_locations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "documents_storno_of_document_id_fkey"
+            columns: ["storno_of_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
         ]
       }
       inventory_transactions: {
