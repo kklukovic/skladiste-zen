@@ -262,7 +262,7 @@ export default function Reports() {
       sigLeftLabel, sigLeftValue, sigRightLabel, sigRightValue,
       items: docTxns.map((t, idx) => {
         const a = articles?.find(ar => ar.id === t.article_id);
-        return { index: idx + 1, code: a?.code || "", name: a?.name || "", unit: a?.unit || t.unit || "", quantity: Number(t.quantity) };
+        return { index: idx + 1, code: a?.code || "", name: a?.name || "", unit: a?.unit || "", quantity: Number(t.quantity) };
       }),
       company,
     });

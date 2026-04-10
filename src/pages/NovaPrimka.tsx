@@ -68,7 +68,7 @@ export default function NovaPrimka() {
 
       const result = await supabase.rpc("create_primka", {
         p_stock_location_id: form.stock_location_id,
-        p_date: new Date(form.date),
+        p_date: form.date,
         p_supplier: form.supplier || null,
         p_note: form.note || null,
         p_items: validItems.map(i => ({
