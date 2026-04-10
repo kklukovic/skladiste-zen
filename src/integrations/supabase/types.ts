@@ -129,6 +129,7 @@ export type Database = {
           recipient_name: string | null
           status: string
           stock_location_id: string
+          storno_of_document_id: string | null
           type: string
         }
         Insert: {
@@ -147,6 +148,7 @@ export type Database = {
           recipient_name?: string | null
           status?: string
           stock_location_id: string
+          storno_of_document_id?: string | null
           type: string
         }
         Update: {
@@ -165,6 +167,7 @@ export type Database = {
           recipient_name?: string | null
           status?: string
           stock_location_id?: string
+          storno_of_document_id?: string | null
           type?: string
         }
         Relationships: [
@@ -466,6 +469,8 @@ export type Database = {
       }
       get_own_role: { Args: never; Returns: string }
       get_user_role: { Args: { _user_id: string }; Returns: string }
+      storno_otpremnice: { Args: { p_document_id: string }; Returns: Json }
+      storno_primke: { Args: { p_document_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

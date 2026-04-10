@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo } from "react";
-import { Download } from "lucide-react";
-import { generateInventoryPDF, generateProjectReportPDF, formatDateHR } from "@/lib/pdf-generators";
+import { Download, FileDown, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { generateInventoryPDF, generateProjectReportPDF, generateDocumentPDF, formatDateHR } from "@/lib/pdf-generators";
 
 function exportExcel(headers: string[], rows: (string | number)[][], filename: string) {
   const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
@@ -31,6 +35,9 @@ export default function Reports() {
   const [projectFilter, setProjectFilter] = useState("all");
   const [txnLocFilter, setTxnLocFilter] = useState("all");
   const [reportProject, setReportProject] = useState("");
+  const [stornoDialog, setStornoDialog] = useState<{ docId: string; docNumber: string; type: "otpremnica" | "primka" } | null>(null);
+
+  const qc = useQueryClient();
 
   const { data: inventory } = useQuery({
     queryKey: ["inventory_current"],
@@ -118,12 +125,22 @@ export default function Reports() {
     opening_balance: { label: "POČETNO STANJE", className: "bg-muted text-muted-foreground" },
     adjustment_in: { label: "KOREKCIJA +", className: "bg-primary/70 text-primary-foreground" },
     adjustment_out: { label: "KOREKCIJA -", className: "bg-destructive/70 text-primary-foreground" },
+    storno_otpremnice: { label: "STORNO OTP.", className: "bg-red-700 text-white" },
+    storno_primka: { label: "STORNO PRM.", className: "bg-red-700 text-white" },
   };
 
   const filteredTxns = useMemo(() => {
     let txns = transactions || [];
-    if (dateFrom) txns = txns.filter(t => t.created_at && t.created_at >= dateFrom);
-    if (dateTo) txns = txns.filter(t => t.created_at && t.created_at <= dateTo + "T23:59:59");
+    if (dateFrom || dateTo) {
+      txns = txns.filter(t => {
+        const doc = documents?.find(d => d.id === t.document_id);
+        const docDate = doc?.date;
+        if (!docDate) return true;
+        if (dateFrom && docDate < dateFrom) return false;
+        if (dateTo && docDate > dateTo) return false;
+        return true;
+      });
+    }
     if (typeFilter !== "all") txns = txns.filter(t => t.type === typeFilter);
     if (articleFilter !== "all") txns = txns.filter(t => t.article_id === articleFilter);
     if (projectFilter !== "all") txns = txns.filter(t => t.project_id === projectFilter);
@@ -131,8 +148,12 @@ export default function Reports() {
       const loc = locations?.find(l => l.code === txnLocFilter);
       if (loc) txns = txns.filter(t => t.stock_location_id === loc.id);
     }
-    return txns;
-  }, [transactions, dateFrom, dateTo, typeFilter, articleFilter, projectFilter, txnLocFilter, locations]);
+    return [...txns].sort((a, b) => {
+      const dateA = documents?.find(d => d.id === a.document_id)?.date || a.created_at || "";
+      const dateB = documents?.find(d => d.id === b.document_id)?.date || b.created_at || "";
+      return dateB.localeCompare(dateA);
+    });
+  }, [transactions, documents, dateFrom, dateTo, typeFilter, articleFilter, projectFilter, txnLocFilter, locations]);
 
   // === TAB 3: Izvještaj po projektu ===
   const projectReport = useMemo(() => {
@@ -164,6 +185,88 @@ export default function Reports() {
       net: items.reduce((s, i) => s + i.net, 0),
     }};
   }, [reportProject, transactions, articles, documents, projects]);
+
+  // Set of document IDs that are the first occurrence in the sorted filtered list
+  const firstOccurrenceDocIds = useMemo(() => {
+    const seen = new Set<string>();
+    const first = new Set<string>();
+    filteredTxns.forEach(t => {
+      if (t.document_id && !seen.has(t.document_id)) {
+        seen.add(t.document_id);
+        first.add(t.document_id);
+      }
+    });
+    return first;
+  }, [filteredTxns]);
+
+  const stornoMutation = useMutation({
+    mutationFn: async ({ docId, type }: { docId: string; type: "otpremnica" | "primka" }) => {
+      const rpc = type === "otpremnica" ? "storno_otpremnice" : "storno_primke";
+      const { data, error } = await supabase.rpc(rpc, { p_document_id: docId });
+      if (error) throw error;
+      return data as { doc_number: string };
+    },
+    onSuccess: (data) => {
+      toast.success(`Storno dokumenta kreiran: ${data.doc_number}`);
+      setStornoDialog(null);
+      qc.invalidateQueries({ queryKey: ["documents_full"] });
+      qc.invalidateQueries({ queryKey: ["inventory_transactions_full"] });
+      qc.invalidateQueries({ queryKey: ["inventory_current"] });
+      qc.invalidateQueries({ queryKey: ["inventory_per_location"] });
+    },
+    onError: (err: Error) => {
+      toast.error(`Greška: ${err.message}`);
+    },
+  });
+
+  function handleDocumentPDF(documentId: string) {
+    const doc = documents?.find(d => d.id === documentId);
+    if (!doc) return;
+    const docTxns = (transactions || []).filter(t => t.document_id === documentId);
+    const project = projects?.find(p => p.id === doc.project_id);
+    const location = locations?.find(l => l.id === doc.stock_location_id);
+
+    const titleMap: Record<string, string> = {
+      out: "OTPREMNICA", otpremnica: "OTPREMNICA",
+      return: "POVRATNICA", povratnica: "POVRATNICA",
+      in: "PRIMKA", primka: "PRIMKA",
+    };
+    const title = titleMap[doc.type] || doc.type.toUpperCase();
+
+    let leftLabel1 = "Primatelj", leftValue1 = doc.recipient_name || "-";
+    let leftLabel2: string | undefined, leftValue2: string | undefined;
+    let rightLabel = "Projekt / Lokacija";
+    let rightValue = [project?.name, location ? `Lok. ${location.code}` : ""].filter(Boolean).join(" / ");
+    let sigLeftLabel = "Izdao", sigLeftValue = doc.issued_by || "";
+    let sigRightLabel = "Primio", sigRightValue = doc.received_by || "";
+
+    if (doc.type === "return" || doc.type === "povratnica") {
+      leftLabel1 = "Projekt"; leftValue1 = project?.name || "-";
+      leftLabel2 = "Adresa"; leftValue2 = (project as any)?.site_address || undefined;
+      rightLabel = "Lokacija povrata";
+      rightValue = location ? `${location.name} (${location.code})` : "-";
+      sigLeftLabel = "Vratio"; sigRightLabel = "Preuzeo";
+    } else if (doc.type === "in" || doc.type === "primka") {
+      leftLabel1 = "Dobavljač"; leftValue1 = doc.recipient_name || "-";
+      rightLabel = "Lokacija";
+      rightValue = location ? `${location.name} (${location.code})` : "-";
+      sigLeftLabel = "Primio"; sigRightLabel = "Dokument pripremio";
+    } else {
+      leftLabel2 = "Adresa"; leftValue2 = doc.recipient_address || undefined;
+    }
+
+    generateDocumentPDF({
+      title, doc_number: doc.doc_number, date: doc.date,
+      leftLabel1, leftValue1, leftLabel2, leftValue2,
+      rightLabel, rightValue,
+      sigLeftLabel, sigLeftValue, sigRightLabel, sigRightValue,
+      items: docTxns.map((t, idx) => {
+        const a = articles?.find(ar => ar.id === t.article_id);
+        return { index: idx + 1, code: a?.code || "", name: a?.name || "", unit: a?.unit || t.unit || "", quantity: Number(t.quantity) };
+      }),
+      company,
+    });
+  }
 
   return (
     <AppLayout title="Izvještaji">
@@ -341,11 +444,12 @@ export default function Reports() {
                   <TableHead>Artikl</TableHead><TableHead>Šifra</TableHead>
                   <TableHead className="text-right">Količina</TableHead>
                   <TableHead>Projekt</TableHead><TableHead>Lokacija</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTxns.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nema podataka</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nema podataka</TableCell></TableRow>
                 ) : (
                   filteredTxns.map(t => {
                     const a = articles?.find(ar => ar.id === t.article_id);
@@ -353,16 +457,38 @@ export default function Reports() {
                     const p = projects?.find(pr => pr.id === t.project_id);
                     const l = locations?.find(lo => lo.id === t.stock_location_id);
                     const tb = typeBadge[t.type] || { label: t.type, className: "bg-muted text-muted-foreground" };
+                    const isStornoed = d?.status === "stornoed";
+                    const isFirstForDoc = t.document_id ? firstOccurrenceDocIds.has(t.document_id) : false;
+                    const canStorno = isFirstForDoc && !isStornoed && (d?.type === "otpremnica" || d?.type === "primka");
                     return (
-                      <TableRow key={t.id}>
-                        <TableCell>{t.created_at ? new Date(t.created_at).toLocaleDateString("hr") : ""}</TableCell>
-                        <TableCell><Badge className={tb.className}>{tb.label}</Badge></TableCell>
+                      <TableRow key={t.id} className={isStornoed ? "opacity-50 line-through" : ""}>
+                        <TableCell>{d?.date ? formatDateHR(d.date) : (t.created_at ? new Date(t.created_at).toLocaleDateString("hr") : "")}</TableCell>
+                        <TableCell>
+                          <Badge className={tb.className}>{tb.label}</Badge>
+                          {isStornoed && <span className="ml-1 text-xs text-destructive font-semibold">STORNO</span>}
+                        </TableCell>
                         <TableCell className="font-mono text-sm">{d?.doc_number || "—"}</TableCell>
                         <TableCell className="font-medium">{a?.name || ""}</TableCell>
                         <TableCell className="font-mono text-sm">{a?.code || ""}</TableCell>
                         <TableCell className="text-right">{Number(t.quantity).toFixed(2)}</TableCell>
                         <TableCell>{p?.name || "—"}</TableCell>
                         <TableCell>{l?.code || ""}</TableCell>
+                        <TableCell className="flex gap-1 justify-end">
+                          {d && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title={`Preuzmi PDF: ${d.doc_number}`} onClick={() => handleDocumentPDF(d.id)}>
+                              <FileDown className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canStorno && (
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                              title={`Storniraj: ${d!.doc_number}`}
+                              onClick={() => setStornoDialog({ docId: d!.id, docNumber: d!.doc_number, type: d!.type as "otpremnica" | "primka" })}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -472,6 +598,39 @@ export default function Reports() {
           {!reportProject && <p className="text-sm text-muted-foreground">Odaberite projekt za prikaz izvještaja</p>}
         </TabsContent>
       </Tabs>
+      <Dialog open={!!stornoDialog} onOpenChange={open => { if (!open) setStornoDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Potvrda storna</DialogTitle>
+            <DialogDescription>
+              {stornoDialog && (
+                <>
+                  Jeste li sigurni da želite stornirati dokument{" "}
+                  <strong>{stornoDialog.docNumber}</strong>?
+                  <br /><br />
+                  {stornoDialog.type === "otpremnica"
+                    ? "Kreirati će se storno otpremnice koja vraća svu robu natrag na zalihu."
+                    : "Kreirati će se storno primke koja uklanja svu robu sa zalihe i recalkulira AVCO."}
+                  <br /><br />
+                  <span className="text-destructive font-medium">Ova radnja se ne može poništiti.</span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStornoDialog(null)} disabled={stornoMutation.isPending}>
+              Odustani
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={stornoMutation.isPending}
+              onClick={() => stornoDialog && stornoMutation.mutate({ docId: stornoDialog.docId, type: stornoDialog.type })}
+            >
+              {stornoMutation.isPending ? "Storniranje..." : "Potvrdi storno"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

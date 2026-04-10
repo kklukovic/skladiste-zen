@@ -12,6 +12,35 @@ function setupCroatianFont(doc: jsPDF) {
   doc.setFont("Roboto", "normal");
 }
 
+const FOOTER_LINES = [
+  "COREX ING d.o.o. za usluge i savjetovanje Međimurska ulica 23, Varaždin OIB: 17193431064 MB: 5907829",
+  "Upisan kod Trgovačkog suda u Varaždinu Tt-24/748-5 MBS: 070206020, Temeljni kapital društva: 2.500,00 EUR, uplaćen u cijelosti",
+  "IBAN: HR8323400091111271766 Privredna banka d.d. Zagreb, SWIFT: PBZGHR2X Uprava: Denis Koren",
+];
+
+function addFooterToAllPages(doc: jsPDF) {
+  const totalPages = (doc as any).internal.getNumberOfPages();
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const m = 15;
+  const lineHeight = 3.5;
+  const footerTextHeight = FOOTER_LINES.length * lineHeight;
+  const separatorY = ph - m - footerTextHeight - 3;
+
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(180);
+    doc.line(m, separatorY, pw - m, separatorY);
+    doc.setFontSize(7.5);
+    doc.setFont("Roboto", "normal");
+    doc.setTextColor(80);
+    FOOTER_LINES.forEach((line, idx) => {
+      doc.text(line, pw / 2, separatorY + 4 + idx * lineHeight, { align: "center" });
+    });
+    doc.setTextColor(0);
+  }
+}
+
 export function formatDateHR(dateStr: string): string {
   const d = new Date(dateStr);
   return `${d.getDate().toString().padStart(2, "0")}.${(d.getMonth() + 1).toString().padStart(2, "0")}.${d.getFullYear()}.`;
@@ -86,7 +115,7 @@ export function generateDocumentPDF(data: DocumentPDFData) {
     body: data.items.map(item => [
       item.index.toString(), item.code, item.name, item.unit, item.quantity.toString(),
     ]),
-    margin: { left: m, right: m },
+    margin: { left: m, right: m, bottom: 32 },
     styles: { fontSize: 9, cellPadding: 3, font: "Roboto" },
     headStyles: { fillColor: [33, 152, 130], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -111,6 +140,7 @@ export function generateDocumentPDF(data: DocumentPDFData) {
   if (data.sigLeftValue) { doc.setFont("Roboto", "bold"); doc.text(data.sigLeftValue, m, sigY + 10); }
   if (data.sigRightValue) { doc.setFont("Roboto", "bold"); doc.text(data.sigRightValue, pw - m - 60, sigY + 10); }
 
+  addFooterToAllPages(doc);
   doc.save(`${data.doc_number}.pdf`);
 }
 
@@ -162,7 +192,7 @@ export function generateInventoryPDF(data: {
     startY: y,
     head: [["Rb.", "Šifra", "Naziv", "JMJ", "Količina", "Nab. cijena", "Vrijednost"]],
     body: bodyRows,
-    margin: { left: m, right: m },
+    margin: { left: m, right: m, bottom: 32 },
     styles: { fontSize: 8, cellPadding: 2.5, font: "Roboto" },
     headStyles: { fillColor: [33, 152, 130], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -181,6 +211,7 @@ export function generateInventoryPDF(data: {
   doc.setFontSize(8);
   doc.text("Odgovorna osoba: _______________", m, sigY + 5);
 
+  addFooterToAllPages(doc);
   doc.save(`inventurna_lista_${now.toISOString().slice(0, 10)}.pdf`);
 }
 
@@ -236,7 +267,7 @@ export function generateProjectReportPDF(data: {
     startY: y,
     head: [["Rb.", "Šifra", "Naziv", "JMJ", "Izdano", "Vraćeno", "Neto utrošak"]],
     body: bodyRows,
-    margin: { left: m, right: m },
+    margin: { left: m, right: m, bottom: 32 },
     styles: { fontSize: 8, cellPadding: 2.5, font: "Roboto" },
     headStyles: { fillColor: [33, 152, 130], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -255,5 +286,6 @@ export function generateProjectReportPDF(data: {
   doc.setFontSize(8);
   doc.text("Odgovorna osoba: _______________", m, sigY + 5);
 
+  addFooterToAllPages(doc);
   doc.save(`izvjestaj_${data.project.name.replace(/\s/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }

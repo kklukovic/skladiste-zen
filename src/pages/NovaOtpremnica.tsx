@@ -35,7 +35,7 @@ export default function NovaOtpremnica() {
     issued_by: profile?.username || "",
     received_by: "",
     note: "",
-    date: new Date().toISOString().slice(0, 10),
+    date: new Date().toLocaleDateString('sv-SE'),
   });
 
   const [items, setItems] = useState<DocItem[]>([
@@ -131,7 +131,7 @@ export default function NovaOtpremnica() {
 
       const result = await supabase.rpc("create_otpremnica", {
         p_stock_location_id: form.stock_location_id,
-        p_date: form.date,
+        p_date: new Date(form.date),
         p_project_id: form.project_id || undefined,
         p_recipient_name: form.recipient_name || undefined,
         p_recipient_address: form.recipient_address || undefined,
