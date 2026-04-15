@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { formatCurrency } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -224,7 +225,7 @@ export default function Articles() {
                     <TableCell className="font-medium">{a.name}</TableCell>
                     <TableCell>{a.unit}</TableCell>
                     <TableCell>{a.category || "—"}</TableCell>
-                    <TableCell className="text-right">{Number(a.purchase_price).toFixed(2)} €</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Number(a.purchase_price))}</TableCell>
                     <TableCell className="text-right">{a.min_quantity}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">

@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useMemo } from "react";
 import { Search, Package, TrendingDown, AlertTriangle, Boxes, ClipboardList } from "lucide-react";
@@ -133,23 +134,59 @@ export default function Inventory() {
   // Opening balance state
   const [obLocation, setObLocation] = useState("");
   const [obQuantities, setObQuantities] = useState<Record<string, number>>({});
+  const [obPrices, setObPrices] = useState<Record<string, number>>({});
+  const [obDate, setObDate] = useState(new Date().toLocaleDateString('sv-SE'));
+  const [obConfirmOpen, setObConfirmOpen] = useState(false);
 
   const initOpeningBalance = () => {
     const quantities: Record<string, number> = {};
+    const prices: Record<string, number> = {};
     articles?.forEach(a => {
-      const inv = inventory?.find(i => i.id === a.id);
       quantities[a.id] = 0;
+      const inv = inventory?.find(i => i.id === a.id);
+      prices[a.id] = Number(inv?.average_cost || a.purchase_price || 0);
     });
     setObQuantities(quantities);
+    setObPrices(prices);
     setObLocation("");
+    setObDate(new Date().toLocaleDateString('sv-SE'));
     setOpeningBalanceOpen(true);
   };
 
+  const handleSubmitOpeningBalance = async () => {
+    if (!obLocation) { toast.error("Odaberite lokaciju"); return; }
+    const { data: existingDocs } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("type", "opening_balance")
+      .eq("stock_location_id", obLocation);
+    if (existingDocs && existingDocs.length > 0) {
+      setObConfirmOpen(true);
+      return;
+    }
+    submitOpeningBalance.mutate(false);
+  };
+
   const submitOpeningBalance = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (deleteExisting: boolean) => {
       if (!obLocation) throw new Error("Odaberite lokaciju");
-const itemsToCreate = Object.entries(obQuantities);
-if (itemsToCreate.length === 0) throw new Error("Nema artikala");
+      const itemsToCreate = Object.entries(obQuantities);
+      if (itemsToCreate.length === 0) throw new Error("Nema artikala");
+
+      // Remove previous opening balance for this location when replacing
+      if (deleteExisting) {
+        const { data: oldDocs } = await supabase
+          .from("documents")
+          .select("id")
+          .eq("type", "opening_balance")
+          .eq("stock_location_id", obLocation);
+        const oldDocIds = (oldDocs || []).map(d => d.id);
+        if (oldDocIds.length > 0) {
+          await supabase.from("inventory_transactions").delete().in("document_id", oldDocIds);
+          await supabase.from("document_items").delete().in("document_id", oldDocIds);
+          await supabase.from("documents").delete().in("id", oldDocIds);
+        }
+      }
 
       const year = new Date().getFullYear();
       const { count } = await supabase
@@ -165,7 +202,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
           type: "opening_balance",
           doc_number: docNumber,
           stock_location_id: obLocation,
-          date: new Date().toISOString().slice(0, 10),
+          date: obDate,
           status: "posted",
         })
         .select().single();
@@ -183,6 +220,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
       for (const [articleId, qty] of itemsToCreate) {
         const article = articles?.find(a => a.id === articleId);
         const existingQty = stockMap.get(articleId) || 0;
+        const enteredPrice = obPrices[articleId] ?? Number(article?.purchase_price || 0);
 
         const { data: item, error: itemErr } = await supabase
           .from("document_items")
@@ -191,7 +229,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
             article_id: articleId,
             quantity: qty,
             unit: article?.unit || "kom",
-            unit_price: article?.purchase_price || 0,
+            unit_price: enteredPrice,
           })
           .select().single();
         if (itemErr) throw itemErr;
@@ -224,6 +262,28 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
             document_item_id: item.id,
           });
         if (txnErr) throw txnErr;
+
+        // Skip AVCO update when quantity is 0 — no stock added, nothing to recalculate
+        if (qty === 0) continue;
+
+        // Compute new AVCO for the article across all locations
+        const invRow = inventory?.find(i => i.id === articleId);
+        const totalQty = Number(invRow?.current_qty || 0);
+        const currentAvgCost = Number(invRow?.average_cost || 0);
+        // Value remaining after zeroing out this location's existing stock
+        const remainingQty = totalQty - existingQty;
+        const remainingValue = remainingQty * currentAvgCost;
+        const addingValue = qty * enteredPrice;
+        const newTotalQty = remainingQty + qty;
+        const newAvgCost = newTotalQty > 0
+          ? (remainingValue + addingValue) / newTotalQty
+          : enteredPrice;
+
+        const { error: avgErr } = await supabase
+          .from("articles")
+          .update({ average_cost: newAvgCost })
+          .eq("id", articleId);
+        if (avgErr) throw avgErr;
       }
       return docNumber;
     },
@@ -232,6 +292,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
       qc.invalidateQueries({ queryKey: ["inventory_per_location"] });
       toast.success(`Početno stanje ${docNumber} uspješno postavljeno`);
       setOpeningBalanceOpen(false);
+      setObConfirmOpen(false);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -247,7 +308,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
                 <CardTitle className="text-sm font-medium text-muted-foreground">Ukupna vrijednost zalihe</CardTitle>
                 <Boxes className="h-4 w-4 text-primary" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold">{totalValue.toFixed(2)} €</div></CardContent>
+              <CardContent><div className="text-2xl font-bold">{formatCurrency(totalValue)}</div></CardContent>
             </Card>
           )}
 
@@ -349,10 +410,10 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.category || "—"}</TableCell>
                       <TableCell>{item.unit}</TableCell>
-                      <TableCell className="text-right">{qty.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{min}</TableCell>
-                     {isAdmin && <TableCell className="text-right">{Number(item.average_cost || 0).toFixed(2)} €</TableCell>}
-{isAdmin && <TableCell className="text-right font-medium">{Number(item.current_value || 0).toFixed(2)} €</TableCell>}
+                      <TableCell className="text-right">{Math.floor(qty)}</TableCell>
+                      <TableCell className="text-right">{Math.floor(min)}</TableCell>
+                     {isAdmin && <TableCell className="text-right">{formatCurrency(Number(item.average_cost || 0))}</TableCell>}
+{isAdmin && <TableCell className="text-right font-medium">{formatCurrency(Number(item.current_value || 0))}</TableCell>}
                       <TableCell>
                         {status === "ok" && <Badge className="bg-primary text-primary-foreground">OK</Badge>}
                         {status === "niska" && <Badge className="bg-[hsl(30,90%,50%)] text-primary-foreground">NISKA ZALIHA</Badge>}
@@ -366,23 +427,62 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
           </Table>
         </div>
 
+        {/* Duplicate opening balance confirmation */}
+        <Dialog open={obConfirmOpen} onOpenChange={setObConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Zamjena početnog stanja</DialogTitle>
+              <DialogDescription>
+                Početno stanje za ovu lokaciju već postoji. Nastavkom će biti zamijenjeno novim. Jeste li sigurni?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setObConfirmOpen(false)} disabled={submitOpeningBalance.isPending}>
+                Odustani
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={submitOpeningBalance.isPending}
+                onClick={() => submitOpeningBalance.mutate(true)}
+              >
+                {submitOpeningBalance.isPending ? "Spremanje..." : "Zamijeni"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Opening Balance Modal */}
         <Dialog open={openingBalanceOpen} onOpenChange={setOpeningBalanceOpen}>
           <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Postavi početno stanje</DialogTitle></DialogHeader>
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Datum *</Label>
+                  <Input
+                    type="date"
+                    value={obDate}
+                    max={new Date().toLocaleDateString('sv-SE')}
+                    onChange={e => setObDate(e.target.value)}
+                  />
+                </div>
+              </div>
               <div>
                 <Label>Skladišna lokacija *</Label>
   <Select value={obLocation} onValueChange={(locationId) => {
   setObLocation(locationId);
   const quantities: Record<string, number> = {};
+  const prices: Record<string, number> = {};
   articles?.forEach(a => {
     const locationStock = perLocation?.find(
       p => p.article_id === a.id && p.stock_location_id === locationId
     );
     quantities[a.id] = Number(locationStock?.current_qty) || 0;
+    const inv = inventory?.find(i => i.id === a.id);
+    prices[a.id] = Number(inv?.average_cost || a.purchase_price || 0);
   });
   setObQuantities(quantities);
+  setObPrices(prices);
 }}>
                   <SelectTrigger><SelectValue placeholder="Odaberi lokaciju" /></SelectTrigger>
                   <SelectContent>
@@ -398,6 +498,7 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
                       <TableHead>Naziv</TableHead>
                       <TableHead>JMJ</TableHead>
                       <TableHead className="w-32">Količina</TableHead>
+                      <TableHead className="w-36">Cijena (€)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -415,13 +516,22 @@ if (itemsToCreate.length === 0) throw new Error("Nema artikala");
                             onChange={(e) => setObQuantities(prev => ({ ...prev, [a.id]: Number(e.target.value) }))}
                           />
                         </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={obPrices[a.id] ?? 0}
+                            onChange={(e) => setObPrices(prev => ({ ...prev, [a.id]: Number(e.target.value) }))}
+                          />
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
               <Button
-                onClick={() => submitOpeningBalance.mutate()}
+                onClick={handleSubmitOpeningBalance}
                 disabled={submitOpeningBalance.isPending}
                 className="w-full"
               >

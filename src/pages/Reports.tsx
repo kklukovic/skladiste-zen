@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { formatCurrency } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -348,13 +349,13 @@ export default function Reports() {
                         <TableCell className="font-medium">{i.name}</TableCell>
                         <TableCell>{i.unit}</TableCell>
                         <TableCell className="text-right">{Number(i.current_qty || 0).toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{Number(i.purchase_price || 0).toFixed(2)} €</TableCell>
-                        <TableCell className="text-right font-medium">{Number(i.current_value || 0).toFixed(2)} €</TableCell>
+                        <TableCell className="text-right">{formatCurrency(Number(i.purchase_price || 0))}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(Number(i.current_value || 0))}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="font-bold border-t-2">
                       <TableCell colSpan={5} className="text-right">Ukupna vrijednost zalihe:</TableCell>
-                      <TableCell className="text-right">{stockTotal.toFixed(2)} €</TableCell>
+                      <TableCell className="text-right">{formatCurrency(stockTotal)}</TableCell>
                     </TableRow>
                   </>
                 )}

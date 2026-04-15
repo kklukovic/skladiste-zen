@@ -4,6 +4,8 @@ import { LOGO_BASE64 } from "@/lib/logo-base64";
 import { ROBOTO_REGULAR_BASE64 } from "@/lib/roboto-regular-base64";
 import { ROBOTO_BOLD_BASE64 } from "@/lib/roboto-bold-base64";
 
+const fmtNum = (v: number) => v.toLocaleString("hr-HR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function setupCroatianFont(doc: jsPDF) {
   doc.addFileToVFS("Roboto-Regular.ttf", ROBOTO_REGULAR_BASE64);
   doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
@@ -184,9 +186,9 @@ export function generateInventoryPDF(data: {
 
   const bodyRows = data.items.map((item, i) => [
     (i + 1).toString(), item.code, item.name, item.unit,
-    item.qty.toFixed(2), item.price.toFixed(2), item.value.toFixed(2),
+    fmtNum(item.qty), fmtNum(item.price), fmtNum(item.value),
   ]);
-  bodyRows.push(["", "", "", "", "", "UKUPNO:", data.totalValue.toFixed(2) + " EUR"]);
+  bodyRows.push(["", "", "", "", "", "UKUPNO:", fmtNum(data.totalValue) + " EUR"]);
 
   autoTable(doc, {
     startY: y,

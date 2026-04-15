@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { formatCurrency } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -204,7 +205,7 @@ export default function NovaPrimka() {
           <div className="flex justify-end">
             <div className="text-right">
               <span className="text-muted-foreground text-sm">Ukupno: </span>
-              <span className="text-lg font-bold">{runningTotal.toFixed(2)} €</span>
+              <span className="text-lg font-bold">{formatCurrency(runningTotal)}</span>
             </div>
           </div>
         </div>
