@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
-import { Save, Plus, Pencil, Trash2, Download, Database, User } from "lucide-react";
+import { Save, Plus, Pencil, Trash2, Download, Database, User, Users } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/hooks/useAuth";
@@ -149,6 +151,27 @@ export default function SettingsPage() {
     }
   };
 
+  // ── Users (monteri) ──
+  const { data: monteri = [] } = useQuery({
+    queryKey: ["profiles_monter"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("id, username, email, role").eq("role", "monter").order("username");
+      if (error) throw error;
+      return data;
+    },
+    enabled: profile?.role === "admin",
+  });
+
+  const [userEditOpen, setUserEditOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<{ id: string; username: string; email: string } | null>(null);
+  const [userForm, setUserForm] = useState({ username: "", email: "", password: "", confirmPassword: "" });
+
+  const openUserEdit = (u: { id: string; username: string; email: string }) => {
+    setEditingUser(u);
+    setUserForm({ username: u.username, email: u.email, password: "", confirmPassword: "" });
+    setUserEditOpen(true);
+  };
+
   // ── Demo data ──
   const [demoLoading, setDemoLoading] = useState(false);
   const loadDemo = async () => {
@@ -246,7 +269,141 @@ export default function SettingsPage() {
 
   return (
     <AppLayout title="Postavke">
-      <div className="space-y-6 max-w-3xl">
+      <Tabs defaultValue="opcenito" className="w-full max-w-3xl">
+        <TabsList className="mb-6">
+          <TabsTrigger value="opcenito">Općenito</TabsTrigger>
+          {profile?.role === "admin" && (
+            <TabsTrigger value="korisnici" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />Korisnici
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        {/* ── TAB: Korisnici (admin only) ── */}
+        {profile?.role === "admin" && (
+          <TabsContent value="korisnici">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />Monteri
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Korisničko ime</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Uloga</TableHead>
+                      <TableHead className="w-24 text-right">Akcije</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {monteri.map(u => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.username || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                        <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">{u.role}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openUserEdit({ id: u.id, username: u.username || "", email: u.email })}
+                          >
+                            <Pencil className="mr-1 h-4 w-4" />Uredi
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {monteri.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          Nema korisnika s ulogom &ldquo;monter&rdquo;
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Edit user dialog */}
+            <Dialog open={userEditOpen} onOpenChange={setUserEditOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />Uredi korisnika
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div>
+                    <Label htmlFor="edit-username">Korisničko ime</Label>
+                    <Input
+                      id="edit-username"
+                      value={userForm.username}
+                      onChange={e => setUserForm({ ...userForm, username: e.target.value })}
+                      placeholder="Korisničko ime"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-email">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={userForm.email}
+                      onChange={e => setUserForm({ ...userForm, email: e.target.value })}
+                      placeholder="email@primjer.hr"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground mb-3">Promjena lozinke (ostavi prazno za zadržavanje trenutne)</p>
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="edit-password">Nova lozinka</Label>
+                        <Input
+                          id="edit-password"
+                          type="password"
+                          value={userForm.password}
+                          onChange={e => setUserForm({ ...userForm, password: e.target.value })}
+                          placeholder="Nova lozinka"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit-confirm-password">Potvrdi lozinku</Label>
+                        <Input
+                          id="edit-confirm-password"
+                          type="password"
+                          value={userForm.confirmPassword}
+                          onChange={e => setUserForm({ ...userForm, confirmPassword: e.target.value })}
+                          placeholder="Ponovi novu lozinku"
+                          className="mt-1"
+                        />
+                        {userForm.password && userForm.confirmPassword && userForm.password !== userForm.confirmPassword && (
+                          <p className="text-sm text-destructive mt-1">Lozinke se ne podudaraju</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setUserEditOpen(false)}>Odustani</Button>
+                  <Button onClick={() => {/* TODO: implement save */}}>
+                    <Save className="mr-2 h-4 w-4" />Spremi
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+        )}
+
+        {/* ── TAB: Općenito ── */}
+        <TabsContent value="opcenito">
+      <div className="space-y-6">
         {/* SECTION 0 — Profile */}
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Moj profil</CardTitle></CardHeader>
@@ -344,6 +501,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
+      </Tabs>
     </AppLayout>
   );
 }
