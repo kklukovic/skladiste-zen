@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo } from "react";
-import { Download, FileDown, RotateCcw } from "lucide-react";
+import { Download, FileDown, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -37,6 +37,7 @@ export default function Reports() {
   const [txnLocFilter, setTxnLocFilter] = useState("all");
   const [reportProject, setReportProject] = useState("");
   const [stornoDialog, setStornoDialog] = useState<{ docId: string; docNumber: string; type: "otpremnica" | "primka" } | null>(null);
+  const [deleteItemDialog, setDeleteItemDialog] = useState<{ documentItemId: string; docNumber: string; articleName: string } | null>(null);
 
   const qc = useQueryClient();
 
@@ -142,6 +143,7 @@ export default function Reports() {
         return true;
       });
     }
+    txns = txns.filter(t => !(t.type === "opening_balance" && Number(t.quantity) === 0));
     if (typeFilter !== "all") txns = txns.filter(t => t.type === typeFilter);
     if (articleFilter !== "all") txns = txns.filter(t => t.article_id === articleFilter);
     if (projectFilter !== "all") txns = txns.filter(t => t.project_id === projectFilter);
@@ -220,6 +222,24 @@ export default function Reports() {
     },
   });
 
+  const deleteItemMutation = useMutation({
+    mutationFn: async (documentItemId: string) => {
+      const { error } = await supabase.rpc("delete_primka_item", { p_document_item_id: documentItemId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Stavka primke uspješno obrisana");
+      setDeleteItemDialog(null);
+      qc.invalidateQueries({ queryKey: ["documents_full"] });
+      qc.invalidateQueries({ queryKey: ["inventory_transactions_full"] });
+      qc.invalidateQueries({ queryKey: ["inventory_current"] });
+      qc.invalidateQueries({ queryKey: ["inventory_per_location"] });
+    },
+    onError: (err: Error) => {
+      toast.error(`Greška: ${err.message}`);
+    },
+  });
+
   function handleDocumentPDF(documentId: string) {
     const doc = documents?.find(d => d.id === documentId);
     if (!doc) return;
@@ -276,6 +296,7 @@ export default function Reports() {
           <TabsTrigger value="stanje">Stanje zalihe</TabsTrigger>
           <TabsTrigger value="prometni">Prometni list</TabsTrigger>
           <TabsTrigger value="projekt">Izvještaj po projektu</TabsTrigger>
+          <TabsTrigger value="fakturiranje">Fakturiranje</TabsTrigger>
         </TabsList>
 
         {/* TAB 1 */}
@@ -461,6 +482,7 @@ export default function Reports() {
                     const isStornoed = d?.status === "stornoed";
                     const isFirstForDoc = t.document_id ? firstOccurrenceDocIds.has(t.document_id) : false;
                     const canStorno = isFirstForDoc && !isStornoed && (d?.type === "otpremnica" || d?.type === "primka");
+                    const canDeletePrimkaItem = t.type === "in" && d?.type === "primka" && !isStornoed && !!t.document_item_id;
                     return (
                       <TableRow key={t.id} className={isStornoed ? "opacity-50 line-through" : ""}>
                         <TableCell>{d?.date ? formatDateHR(d.date) : (t.created_at ? new Date(t.created_at).toLocaleDateString("hr") : "")}</TableCell>
@@ -468,7 +490,16 @@ export default function Reports() {
                           <Badge className={tb.className}>{tb.label}</Badge>
                           {isStornoed && <span className="ml-1 text-xs text-destructive font-semibold">STORNO</span>}
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{d?.doc_number || "—"}</TableCell>
+                        <TableCell className="font-mono text-sm">
+                          <span className="flex items-center gap-1.5">
+                            {d?.doc_number || "—"}
+                            {(d?.type === "otpremnica" || d?.type === "out") && (
+                              d?.racun_broj
+                                ? <span className="inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-green-100 text-green-700 border border-green-300" title={`Račun: ${d.racun_broj}`}>R</span>
+                                : <span className="inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-300" title="Nema računa">NR</span>
+                            )}
+                          </span>
+                        </TableCell>
                         <TableCell className="font-medium">{a?.name || ""}</TableCell>
                         <TableCell className="font-mono text-sm">{a?.code || ""}</TableCell>
                         <TableCell className="text-right">{Number(t.quantity).toFixed(2)}</TableCell>
@@ -487,6 +518,19 @@ export default function Reports() {
                               onClick={() => setStornoDialog({ docId: d!.id, docNumber: d!.doc_number, type: d!.type as "otpremnica" | "primka" })}
                             >
                               <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDeletePrimkaItem && (
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                              title="Obriši stavku primke"
+                              onClick={() => setDeleteItemDialog({
+                                documentItemId: t.document_item_id!,
+                                docNumber: d!.doc_number,
+                                articleName: a?.name || "",
+                              })}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
                         </TableCell>
@@ -598,6 +642,106 @@ export default function Reports() {
 
           {!reportProject && <p className="text-sm text-muted-foreground">Odaberite projekt za prikaz izvještaja</p>}
         </TabsContent>
+        {/* TAB 4: Fakturiranje */}
+        <TabsContent value="fakturiranje" className="space-y-6">
+          <p className="text-sm text-muted-foreground">Pregled otpremnica prema statusu fakturiranja</p>
+
+          {/* Nefakturirano */}
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold flex items-center gap-2">
+              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-orange-100 text-orange-700 border border-orange-300">NR</span>
+              Nefakturirano
+            </h3>
+            <div className="rounded-lg border bg-card overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Datum</TableHead>
+                    <TableHead>Broj otpremnice</TableHead>
+                    <TableHead>Primatelj</TableHead>
+                    <TableHead>Projekt</TableHead>
+                    <TableHead>Lokacija</TableHead>
+                    <TableHead>Broj računa</TableHead>
+                    <TableHead>Datum računa</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const nefakturirano = (documents || []).filter(d => d.type === "otpremnica" && !d.racun_broj && d.status !== "stornoed");
+                    if (nefakturirano.length === 0) return (
+                      <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nema nefakturiranih otpremnica</TableCell></TableRow>
+                    );
+                    return nefakturirano
+                      .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+                      .map(d => {
+                        const p = projects?.find(pr => pr.id === d.project_id);
+                        const l = locations?.find(lo => lo.id === d.stock_location_id);
+                        return (
+                          <TableRow key={d.id}>
+                            <TableCell>{d.date ? formatDateHR(d.date) : "—"}</TableCell>
+                            <TableCell className="font-mono text-sm">{d.doc_number}</TableCell>
+                            <TableCell>{d.recipient_name || "—"}</TableCell>
+                            <TableCell>{p?.name || "—"}</TableCell>
+                            <TableCell>{l?.code || "—"}</TableCell>
+                            <TableCell>—</TableCell>
+                            <TableCell>—</TableCell>
+                          </TableRow>
+                        );
+                      });
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Fakturirano */}
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold flex items-center gap-2">
+              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-green-100 text-green-700 border border-green-300">R</span>
+              Fakturirano
+            </h3>
+            <div className="rounded-lg border bg-card overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Datum</TableHead>
+                    <TableHead>Broj otpremnice</TableHead>
+                    <TableHead>Primatelj</TableHead>
+                    <TableHead>Projekt</TableHead>
+                    <TableHead>Lokacija</TableHead>
+                    <TableHead>Broj računa</TableHead>
+                    <TableHead>Datum računa</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const fakturirano = (documents || []).filter(d => d.type === "otpremnica" && !!d.racun_broj);
+                    if (fakturirano.length === 0) return (
+                      <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nema fakturiranih otpremnica</TableCell></TableRow>
+                    );
+                    return fakturirano
+                      .sort((a, b) => (b.racun_datum || b.date || "").localeCompare(a.racun_datum || a.date || ""))
+                      .map(d => {
+                        const p = projects?.find(pr => pr.id === d.project_id);
+                        const l = locations?.find(lo => lo.id === d.stock_location_id);
+                        return (
+                          <TableRow key={d.id}>
+                            <TableCell>{d.date ? formatDateHR(d.date) : "—"}</TableCell>
+                            <TableCell className="font-mono text-sm">{d.doc_number}</TableCell>
+                            <TableCell>{d.recipient_name || "—"}</TableCell>
+                            <TableCell>{p?.name || "—"}</TableCell>
+                            <TableCell>{l?.code || "—"}</TableCell>
+                            <TableCell className="font-mono text-sm">{d.racun_broj}</TableCell>
+                            <TableCell>{d.racun_datum ? formatDateHR(d.racun_datum) : "—"}</TableCell>
+                          </TableRow>
+                        );
+                      });
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
       <Dialog open={!!stornoDialog} onOpenChange={open => { if (!open) setStornoDialog(null); }}>
         <DialogContent>
@@ -628,6 +772,38 @@ export default function Reports() {
               onClick={() => stornoDialog && stornoMutation.mutate({ docId: stornoDialog.docId, type: stornoDialog.type })}
             >
               {stornoMutation.isPending ? "Storniranje..." : "Potvrdi storno"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!deleteItemDialog} onOpenChange={open => { if (!open) setDeleteItemDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Brisanje stavke primke</DialogTitle>
+            <DialogDescription>
+              {deleteItemDialog && (
+                <>
+                  Jeste li sigurni da želite obrisati stavku{" "}
+                  <strong>{deleteItemDialog.articleName}</strong> iz primke{" "}
+                  <strong>{deleteItemDialog.docNumber}</strong>?
+                  <br /><br />
+                  Vezana inventurna transakcija bit će izbrisana i AVCO za taj artikl bit će recalkuliran.
+                  <br /><br />
+                  <span className="text-destructive font-medium">Ova radnja se ne može poništiti.</span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteItemDialog(null)} disabled={deleteItemMutation.isPending}>
+              Odustani
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteItemMutation.isPending}
+              onClick={() => deleteItemDialog && deleteItemMutation.mutate(deleteItemDialog.documentItemId)}
+            >
+              {deleteItemMutation.isPending ? "Brisanje..." : "Obriši stavku"}
             </Button>
           </DialogFooter>
         </DialogContent>

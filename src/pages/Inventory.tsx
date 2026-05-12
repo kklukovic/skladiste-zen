@@ -108,18 +108,20 @@ export default function Inventory() {
   }, [inventory, perLocation, locationFilter]);
 
   const filtered = useMemo(() => {
-    return dataSource.filter(i => {
-      const matchSearch = !search ||
-        i.code?.toLowerCase().includes(search.toLowerCase()) ||
-        i.name?.toLowerCase().includes(search.toLowerCase());
-      const matchCategory = categoryFilter === "all" || i.category === categoryFilter;
-      const status = getStatus(Number(i.current_qty) || 0, Number(i.min_quantity) || 0);
-      const matchStatus = statusFilter === "all" ||
-        (statusFilter === "ok" && status === "ok") ||
-        (statusFilter === "niska" && status === "niska") ||
-        (statusFilter === "nema" && status === "nema");
-      return matchSearch && matchCategory && matchStatus;
-    });
+    return dataSource
+      .filter(i => {
+        const matchSearch = !search ||
+          i.code?.toLowerCase().includes(search.toLowerCase()) ||
+          i.name?.toLowerCase().includes(search.toLowerCase());
+        const matchCategory = categoryFilter === "all" || i.category === categoryFilter;
+        const status = getStatus(Number(i.current_qty) || 0, Number(i.min_quantity) || 0);
+        const matchStatus = statusFilter === "all" ||
+          (statusFilter === "ok" && status === "ok") ||
+          (statusFilter === "niska" && status === "niska") ||
+          (statusFilter === "nema" && status === "nema");
+        return matchSearch && matchCategory && matchStatus;
+      })
+      .sort((a, b) => (a.code || "").localeCompare(b.code || ""));
   }, [dataSource, search, categoryFilter, statusFilter]);
 
   const totalArticles = inventory?.length || 0;

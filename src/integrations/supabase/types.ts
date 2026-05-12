@@ -124,6 +124,8 @@ export type Database = {
           issued_by: string | null
           note: string | null
           project_id: string | null
+          racun_broj: string | null
+          racun_datum: string | null
           received_by: string | null
           recipient_address: string | null
           recipient_name: string | null
@@ -143,6 +145,8 @@ export type Database = {
           issued_by?: string | null
           note?: string | null
           project_id?: string | null
+          racun_broj?: string | null
+          racun_datum?: string | null
           received_by?: string | null
           recipient_address?: string | null
           recipient_name?: string | null
@@ -162,6 +166,8 @@ export type Database = {
           issued_by?: string | null
           note?: string | null
           project_id?: string | null
+          racun_broj?: string | null
+          racun_datum?: string | null
           received_by?: string | null
           recipient_address?: string | null
           recipient_name?: string | null
@@ -474,6 +480,7 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_primka_item: { Args: { p_document_item_id: string }; Returns: undefined }
       get_own_role: { Args: never; Returns: string }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       storno_otpremnice: { Args: { p_document_id: string }; Returns: Json }

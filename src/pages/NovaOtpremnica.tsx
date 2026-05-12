@@ -36,6 +36,8 @@ export default function NovaOtpremnica() {
     received_by: "",
     note: "",
     date: new Date().toLocaleDateString('sv-SE'),
+    racun_broj: "",
+    racun_datum: "",
   });
 
   const [items, setItems] = useState<DocItem[]>([
@@ -45,7 +47,7 @@ export default function NovaOtpremnica() {
   const { data: articles } = useQuery({
     queryKey: ["articles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("articles").select("*").order("name");
+      const { data, error } = await supabase.from("articles").select("*").order("code");
       if (error) throw error;
       return data;
     },
@@ -113,11 +115,12 @@ export default function NovaOtpremnica() {
       if (!item.article_id || !form.stock_location_id) return "";
       const available = stockAtLocation.get(item.article_id) || 0;
       if (item.quantity > available) {
-        return `Nedovoljno na zalihi (dostupno: ${available} ${item.unit})`;
+        const naziv = articles?.find(a => a.id === item.article_id)?.name || item.article_id;
+        return `Nedovoljno zalihe za artikl ${naziv}: dostupno ${available}, traženo ${item.quantity}`;
       }
       return "";
     });
-  }, [items, stockAtLocation, form.stock_location_id]);
+  }, [items, stockAtLocation, form.stock_location_id, articles]);
 
   const hasErrors = rowErrors.some(e => e !== "");
 
@@ -148,6 +151,14 @@ export default function NovaOtpremnica() {
 
       if (result.error) throw result.error;
       const data = result.data as { id: string; doc_number: string; date: string; recipient_name: string; recipient_address: string; issued_by: string; received_by: string };
+
+      if (form.racun_broj || form.racun_datum) {
+        const { error: updateError } = await supabase.from("documents").update({
+          racun_broj: form.racun_broj || null,
+          racun_datum: form.racun_datum || null,
+        }).eq("id", data.id);
+        if (updateError) throw updateError;
+      }
 
       const project = projects?.find(p => p.id === form.project_id);
       generateDocumentPDF({
@@ -244,6 +255,16 @@ export default function NovaOtpremnica() {
             <Label>Napomena</Label>
             <Textarea value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} />
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <Label>Broj računa <span className="text-muted-foreground text-xs">(opcionalno)</span></Label>
+              <Input value={form.racun_broj} onChange={e => setForm({ ...form, racun_broj: e.target.value })} placeholder="npr. R-2026-001" />
+            </div>
+            <div>
+              <Label>Datum računa <span className="text-muted-foreground text-xs">(opcionalno)</span></Label>
+              <Input type="date" value={form.racun_datum} onChange={e => setForm({ ...form, racun_datum: e.target.value })} />
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -271,7 +292,6 @@ export default function NovaOtpremnica() {
               </TableHeader>
               <TableBody>
                 {items.map((item, idx) => {
-                  const available = item.article_id ? (stockAtLocation.get(item.article_id) || 0) : 0;
                   return (
                     <TableRow key={idx}>
                       <TableCell>
