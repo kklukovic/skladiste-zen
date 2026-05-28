@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo } from "react";
-import { Download, FileDown, RotateCcw, Trash2 } from "lucide-react";
+import { Download, FileDown, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -38,6 +38,7 @@ export default function Reports() {
   const [reportProject, setReportProject] = useState("");
   const [stornoDialog, setStornoDialog] = useState<{ docId: string; docNumber: string; type: "otpremnica" | "primka" } | null>(null);
   const [deleteItemDialog, setDeleteItemDialog] = useState<{ documentItemId: string; docNumber: string; articleName: string } | null>(null);
+  const [invoiceDialog, setInvoiceDialog] = useState<{ itemId: string; quantity: number; fakturirana_kolicina: string; racun_broj: string; racun_datum: string } | null>(null);
 
   const qc = useQueryClient();
 
@@ -64,6 +65,10 @@ export default function Reports() {
   const { data: documents } = useQuery({
     queryKey: ["documents_full"],
     queryFn: async () => { const { data, error } = await supabase.from("documents").select("*"); if (error) throw error; return data; },
+  });
+  const { data: documentItems } = useQuery({
+    queryKey: ["document_items_all"],
+    queryFn: async () => { const { data, error } = await supabase.from("document_items").select("*"); if (error) throw error; return data; },
   });
   const { data: projects } = useQuery({
     queryKey: ["projects"],
@@ -202,6 +207,35 @@ export default function Reports() {
     return first;
   }, [filteredTxns]);
 
+  // === TAB: Nefakturirano ===
+  const nefakturiranoByProject = useMemo(() => {
+    if (!documentItems || !documents || !articles || !projects) return [];
+    const otpremnicaDocs = new Map<string, (typeof documents)[0]>();
+    documents.forEach(d => {
+      if (d.type === "otpremnica" && d.status !== "stornoed") otpremnicaDocs.set(d.id, d);
+    });
+    const items = documentItems
+      .filter(di => {
+        const fk = Number(di.fakturirana_kolicina) || 0;
+        const qty = Number(di.quantity) || 0;
+        return otpremnicaDocs.has(di.document_id) && fk < qty;
+      })
+      .map(di => {
+        const doc = otpremnicaDocs.get(di.document_id);
+        const article = articles.find(a => a.id === di.article_id);
+        const project = projects.find(p => p.id === doc?.project_id);
+        return { di, doc, article, project };
+      })
+      .sort((a, b) => (a.doc?.date || "").localeCompare(b.doc?.date || ""));
+    const groups = new Map<string, { project: (typeof projects)[0] | undefined; items: typeof items }>();
+    items.forEach(item => {
+      const key = item.project?.id || "__no_project__";
+      if (!groups.has(key)) groups.set(key, { project: item.project, items: [] });
+      groups.get(key)!.items.push(item);
+    });
+    return Array.from(groups.values());
+  }, [documentItems, documents, articles, projects]);
+
   const stornoMutation = useMutation({
     mutationFn: async ({ docId, type }: { docId: string; type: "otpremnica" | "primka" }) => {
       const rpc = type === "otpremnica" ? "storno_otpremnice" : "storno_primke";
@@ -238,6 +272,21 @@ export default function Reports() {
     onError: (err: Error) => {
       toast.error(`Greška: ${err.message}`);
     },
+  });
+
+  const updateInvoiceMutation = useMutation({
+    mutationFn: async ({ itemId, fakturirana_kolicina, racun_broj, racun_datum }: {
+      itemId: string; fakturirana_kolicina: number; racun_broj: string | null; racun_datum: string | null;
+    }) => {
+      const { error } = await supabase.from("document_items").update({ fakturirana_kolicina, racun_broj: racun_broj || null, racun_datum: racun_datum || null }).eq("id", itemId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Fakturiranje ažurirano");
+      setInvoiceDialog(null);
+      qc.invalidateQueries({ queryKey: ["document_items_all"] });
+    },
+    onError: (err: Error) => { toast.error(`Greška: ${err.message}`); },
   });
 
   function handleDocumentPDF(documentId: string) {
@@ -296,7 +345,7 @@ export default function Reports() {
           <TabsTrigger value="stanje">Stanje zalihe</TabsTrigger>
           <TabsTrigger value="prometni">Prometni list</TabsTrigger>
           <TabsTrigger value="projekt">Izvještaj po projektu</TabsTrigger>
-          <TabsTrigger value="fakturiranje">Fakturiranje</TabsTrigger>
+          <TabsTrigger value="nefakturirano">Nefakturirano</TabsTrigger>
         </TabsList>
 
         {/* TAB 1 */}
@@ -466,12 +515,13 @@ export default function Reports() {
                   <TableHead>Artikl</TableHead><TableHead>Šifra</TableHead>
                   <TableHead className="text-right">Količina</TableHead>
                   <TableHead>Projekt</TableHead><TableHead>Lokacija</TableHead>
+                  <TableHead className="text-center w-28">Fakt.</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTxns.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nema podataka</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nema podataka</TableCell></TableRow>
                 ) : (
                   filteredTxns.map(t => {
                     const a = articles?.find(ar => ar.id === t.article_id);
@@ -483,6 +533,9 @@ export default function Reports() {
                     const isFirstForDoc = t.document_id ? firstOccurrenceDocIds.has(t.document_id) : false;
                     const canStorno = isFirstForDoc && !isStornoed && (d?.type === "otpremnica" || d?.type === "primka");
                     const canDeletePrimkaItem = t.type === "in" && d?.type === "primka" && !isStornoed && !!t.document_item_id;
+                    const di = (t.type === "out" && t.document_item_id) ? documentItems?.find(i => i.id === t.document_item_id) : undefined;
+                    const fk = Number(di?.fakturirana_kolicina) || 0;
+                    const diqty = Number(di?.quantity) || 0;
                     return (
                       <TableRow key={t.id} className={isStornoed ? "opacity-50 line-through" : ""}>
                         <TableCell>{d?.date ? formatDateHR(d.date) : (t.created_at ? new Date(t.created_at).toLocaleDateString("hr") : "")}</TableCell>
@@ -505,6 +558,23 @@ export default function Reports() {
                         <TableCell className="text-right">{Number(t.quantity).toFixed(2)}</TableCell>
                         <TableCell>{p?.name || "—"}</TableCell>
                         <TableCell>{l?.code || ""}</TableCell>
+                        <TableCell className="text-center">
+                          {di && (
+                            <span className="flex items-center gap-1 justify-center">
+                              {fk === 0
+                                ? <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-300">NF</span>
+                                : fk < diqty
+                                  ? <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-yellow-100 text-yellow-700 border border-yellow-300">DJELOMIČNO</span>
+                                  : <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 border border-green-300">F</span>
+                              }
+                              <Button variant="ghost" size="icon" className="h-6 w-6" title="Uredi fakturiranje"
+                                onClick={() => setInvoiceDialog({ itemId: t.document_item_id!, quantity: diqty, fakturirana_kolicina: String(fk), racun_broj: di.racun_broj || "", racun_datum: di.racun_datum || "" })}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="flex gap-1 justify-end">
                           {d && (
                             <Button variant="ghost" size="icon" className="h-7 w-7" title={`Preuzmi PDF: ${d.doc_number}`} onClick={() => handleDocumentPDF(d.id)}>
@@ -642,105 +712,52 @@ export default function Reports() {
 
           {!reportProject && <p className="text-sm text-muted-foreground">Odaberite projekt za prikaz izvještaja</p>}
         </TabsContent>
-        {/* TAB 4: Fakturiranje */}
-        <TabsContent value="fakturiranje" className="space-y-6">
-          <p className="text-sm text-muted-foreground">Pregled otpremnica prema statusu fakturiranja</p>
-
-          {/* Nefakturirano */}
-          <div className="space-y-2">
-            <h3 className="text-base font-semibold flex items-center gap-2">
-              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-orange-100 text-orange-700 border border-orange-300">NR</span>
-              Nefakturirano
-            </h3>
-            <div className="rounded-lg border bg-card overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Datum</TableHead>
-                    <TableHead>Broj otpremnice</TableHead>
-                    <TableHead>Primatelj</TableHead>
-                    <TableHead>Projekt</TableHead>
-                    <TableHead>Lokacija</TableHead>
-                    <TableHead>Broj računa</TableHead>
-                    <TableHead>Datum računa</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const nefakturirano = (documents || []).filter(d => d.type === "otpremnica" && !d.racun_broj && d.status !== "stornoed");
-                    if (nefakturirano.length === 0) return (
-                      <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nema nefakturiranih otpremnica</TableCell></TableRow>
-                    );
-                    return nefakturirano
-                      .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-                      .map(d => {
-                        const p = projects?.find(pr => pr.id === d.project_id);
-                        const l = locations?.find(lo => lo.id === d.stock_location_id);
+        {/* TAB 4: Nefakturirano */}
+        <TabsContent value="nefakturirano" className="space-y-4">
+          <p className="text-sm text-muted-foreground">Stavke otpremnica koje nisu u potpunosti fakturirane</p>
+          {nefakturiranoByProject.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Nema nefakturiranih stavki</p>
+          ) : (
+            nefakturiranoByProject.map((group, gi) => (
+              <div key={gi} className="space-y-2">
+                <h3 className="text-base font-semibold">{group.project?.name || "— Bez projekta"}</h3>
+                <div className="rounded-lg border bg-card overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Datum otpremnice</TableHead>
+                        <TableHead>Projekt</TableHead>
+                        <TableHead>Artikl</TableHead>
+                        <TableHead>Šifra</TableHead>
+                        <TableHead className="text-right">Isporučeno</TableHead>
+                        <TableHead className="text-right">Fakturirano</TableHead>
+                        <TableHead className="text-right">Razlika</TableHead>
+                        <TableHead>Broj računa</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.items.map((item, idx) => {
+                        const itemFk = Number(item.di.fakturirana_kolicina) || 0;
+                        const itemQty = Number(item.di.quantity) || 0;
                         return (
-                          <TableRow key={d.id}>
-                            <TableCell>{d.date ? formatDateHR(d.date) : "—"}</TableCell>
-                            <TableCell className="font-mono text-sm">{d.doc_number}</TableCell>
-                            <TableCell>{d.recipient_name || "—"}</TableCell>
-                            <TableCell>{p?.name || "—"}</TableCell>
-                            <TableCell>{l?.code || "—"}</TableCell>
-                            <TableCell>—</TableCell>
-                            <TableCell>—</TableCell>
+                          <TableRow key={idx}>
+                            <TableCell>{item.doc?.date ? formatDateHR(item.doc.date) : "—"}</TableCell>
+                            <TableCell>{item.project?.name || "—"}</TableCell>
+                            <TableCell className="font-medium">{item.article?.name || "—"}</TableCell>
+                            <TableCell className="font-mono text-sm">{item.article?.code || "—"}</TableCell>
+                            <TableCell className="text-right">{itemQty.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{itemFk.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-medium">{(itemQty - itemFk).toFixed(2)}</TableCell>
+                            <TableCell className="font-mono text-sm">{item.di.racun_broj || "—"}</TableCell>
                           </TableRow>
                         );
-                      });
-                  })()}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-
-          {/* Fakturirano */}
-          <div className="space-y-2">
-            <h3 className="text-base font-semibold flex items-center gap-2">
-              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-green-100 text-green-700 border border-green-300">R</span>
-              Fakturirano
-            </h3>
-            <div className="rounded-lg border bg-card overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Datum</TableHead>
-                    <TableHead>Broj otpremnice</TableHead>
-                    <TableHead>Primatelj</TableHead>
-                    <TableHead>Projekt</TableHead>
-                    <TableHead>Lokacija</TableHead>
-                    <TableHead>Broj računa</TableHead>
-                    <TableHead>Datum računa</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const fakturirano = (documents || []).filter(d => d.type === "otpremnica" && !!d.racun_broj);
-                    if (fakturirano.length === 0) return (
-                      <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nema fakturiranih otpremnica</TableCell></TableRow>
-                    );
-                    return fakturirano
-                      .sort((a, b) => (b.racun_datum || b.date || "").localeCompare(a.racun_datum || a.date || ""))
-                      .map(d => {
-                        const p = projects?.find(pr => pr.id === d.project_id);
-                        const l = locations?.find(lo => lo.id === d.stock_location_id);
-                        return (
-                          <TableRow key={d.id}>
-                            <TableCell>{d.date ? formatDateHR(d.date) : "—"}</TableCell>
-                            <TableCell className="font-mono text-sm">{d.doc_number}</TableCell>
-                            <TableCell>{d.recipient_name || "—"}</TableCell>
-                            <TableCell>{p?.name || "—"}</TableCell>
-                            <TableCell>{l?.code || "—"}</TableCell>
-                            <TableCell className="font-mono text-sm">{d.racun_broj}</TableCell>
-                            <TableCell>{d.racun_datum ? formatDateHR(d.racun_datum) : "—"}</TableCell>
-                          </TableRow>
-                        );
-                      });
-                  })()}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ))
+          )}
         </TabsContent>
       </Tabs>
       <Dialog open={!!stornoDialog} onOpenChange={open => { if (!open) setStornoDialog(null); }}>
@@ -804,6 +821,59 @@ export default function Reports() {
               onClick={() => deleteItemDialog && deleteItemMutation.mutate(deleteItemDialog.documentItemId)}
             >
               {deleteItemMutation.isPending ? "Brisanje..." : "Obriši stavku"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!invoiceDialog} onOpenChange={open => { if (!open) setInvoiceDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Uredi fakturiranje stavke</DialogTitle>
+            <DialogDescription>Unesite podatke o fakturiranju za ovu stavku otpremnice.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs">Fakturirana količina (maks. {invoiceDialog?.quantity.toFixed(2)})</Label>
+              <Input
+                type="number" min="0" max={invoiceDialog?.quantity} step="0.01"
+                value={invoiceDialog?.fakturirana_kolicina ?? ""}
+                onChange={e => setInvoiceDialog(prev => prev ? { ...prev, fakturirana_kolicina: e.target.value } : null)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Broj računa</Label>
+              <Input
+                type="text"
+                value={invoiceDialog?.racun_broj ?? ""}
+                onChange={e => setInvoiceDialog(prev => prev ? { ...prev, racun_broj: e.target.value } : null)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Datum računa</Label>
+              <Input
+                type="date"
+                value={invoiceDialog?.racun_datum ?? ""}
+                onChange={e => setInvoiceDialog(prev => prev ? { ...prev, racun_datum: e.target.value } : null)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInvoiceDialog(null)} disabled={updateInvoiceMutation.isPending}>
+              Odustani
+            </Button>
+            <Button
+              disabled={updateInvoiceMutation.isPending}
+              onClick={() => {
+                if (!invoiceDialog) return;
+                updateInvoiceMutation.mutate({
+                  itemId: invoiceDialog.itemId,
+                  fakturirana_kolicina: Number(invoiceDialog.fakturirana_kolicina) || 0,
+                  racun_broj: invoiceDialog.racun_broj || null,
+                  racun_datum: invoiceDialog.racun_datum || null,
+                });
+              }}
+            >
+              {updateInvoiceMutation.isPending ? "Sprema..." : "Spremi"}
             </Button>
           </DialogFooter>
         </DialogContent>

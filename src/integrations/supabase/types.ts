@@ -55,9 +55,12 @@ export type Database = {
           article_id: string
           created_at: string | null
           document_id: string
+          fakturirana_kolicina: number | null
           id: string
           note: string | null
           quantity: number
+          racun_broj: string | null
+          racun_datum: string | null
           unit: string
           unit_price: number | null
         }
@@ -65,9 +68,12 @@ export type Database = {
           article_id: string
           created_at?: string | null
           document_id: string
+          fakturirana_kolicina?: number | null
           id?: string
           note?: string | null
           quantity: number
+          racun_broj?: string | null
+          racun_datum?: string | null
           unit: string
           unit_price?: number | null
         }
@@ -75,9 +81,12 @@ export type Database = {
           article_id?: string
           created_at?: string | null
           document_id?: string
+          fakturirana_kolicina?: number | null
           id?: string
           note?: string | null
           quantity?: number
+          racun_broj?: string | null
+          racun_datum?: string | null
           unit?: string
           unit_price?: number | null
         }
