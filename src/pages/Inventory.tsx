@@ -191,12 +191,16 @@ export default function Inventory() {
       }
 
       const year = new Date().getFullYear();
-      const { count } = await supabase
+      const { data: maxDoc } = await supabase
         .from("documents")
-        .select("*", { count: "exact", head: true })
-        .eq("type", "opening_balance")
-        .gte("date", `${year}-01-01`);
-      const docNumber = `POC-${year}-${String((count || 0) + 1).padStart(4, "0")}`;
+        .select("doc_number")
+        .like("doc_number", `POC-${year}-%`)
+        .order("doc_number", { ascending: false })
+        .limit(1);
+      const maxNum = maxDoc?.[0]?.doc_number
+        ? parseInt(maxDoc[0].doc_number.split("-")[2]) || 0
+        : 0;
+      const docNumber = `POC-${year}-${String(maxNum + 1).padStart(4, "0")}`;
 
       const { data: doc, error: docErr } = await supabase
         .from("documents")
